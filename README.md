@@ -1,4 +1,4 @@
-Confluent's .NET Client for Apache Kafka<sup>TM</sup>
+Confluent's Apache Kafka<sup>TM</sup> Client for .NET
 =====================================================
 
 **confluent-kafka-dotnet** is Confluent's .NET client for [Apache Kafka](http://kafka.apache.org/) and the
@@ -26,14 +26,6 @@ pace with core Apache Kafka and components of the [Confluent Platform](https://w
 confluent-kafka-dotnet is derived from Andreas Heider's [rdkafka-dotnet](https://github.com/ah-/rdkafka-dotnet).
 We're fans of his work and were very happy to have been able to leverage rdkafka-dotnet as the basis of this
 client. Thanks Andreas!
-
-*****developer preview*****
-
-- Only limited testing was performed
-- Minor API changes anticipated
-- Feedback encouraged
-
-*****developer preview*****
 
 ## Usage
 
