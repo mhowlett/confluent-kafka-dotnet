@@ -1,6 +1,12 @@
 os: Visual Studio 2015
 
+platform:
+- x86
+- x64
+- Any CPU
+
 configuration:
+- Debug
 - Release
 
 install:
@@ -22,6 +28,8 @@ build_script:
 test_script:
  - dotnet test -c %CONFIGURATION% --no-build test/Confluent.Kafka.UnitTests/Confluent.Kafka.UnitTests.csproj
  - dotnet test -c %CONFIGURATION% test/Confluent.Kafka.StrongName.UnitTests/Confluent.Kafka.StrongName.UnitTests.csproj
+
+ install_kafka
 
 artifacts:
   - path: ./src/Confluent.Kafka/bin*/Release/*.nupkg
