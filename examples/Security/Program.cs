@@ -35,7 +35,7 @@ namespace Confluent.Kafka.Examples.Security
             { 
                 { "bootstrap.servers", "localhost:9093" },
                 { "security.protocol", "SSL" },
-                { "ssl.ca.location", "/tmp/ca-cert" },
+                { "ssl.ca.location", "/tmp/ca-root.crt" },
                 { "debug", "security" }
             };
 
@@ -43,7 +43,7 @@ namespace Confluent.Kafka.Examples.Security
             { 
                 { "bootstrap.servers", "localhost:9093" },
                 { "security.protocol", "SSL" },
-                { "ssl.ca.location", "/tmp/ca-cert" },
+                { "ssl.ca.location", "/tmp/ca-root.crt" },
                 { "ssl.certificate.location", "/tmp/localhost_client.crt" },
                 { "ssl.key.location", "/tmp/localhost_client.key" },
                 { "debug", "security" }
