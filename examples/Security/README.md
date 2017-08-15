@@ -115,6 +115,7 @@ For further information, some good resources are:
 ## Example 2 - Two-Way SSL/TLS (Example 1 + SSL Client Authentication)
 
 - Functionality provided by Example 1, plus:
+
 - Server verifies the identity of the client (i.e. that the public key certificate provided by the client has been signed by a CA trusted by the server).
 
 **Procedure:**
