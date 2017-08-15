@@ -2,7 +2,7 @@
 
 This is a walkthough of various Kafka security configuration scenarios with example code in C#.
 
-**Note:** WORK IN PROGRESS! I will hopefully get a chance to polish and add a Kerberos example soon.
+**Note:** WORK IN PROGRESS! I will hopefully get a chance to add a Kerberos example soon.
 
 For simplicity we're just going to be setting up a single broker and client, but we'll also make some notes along the way on what you'll need to do for more complex configurations. 
 
@@ -45,9 +45,11 @@ For further information, some good resources are:
     1. Generate a new public/private key pair and prompt you for additional information that is required to make a *public key certificate*. In aggregate this information is referred to as the Distinguishing Name (DN).
         - You need to set the CN (the answer to the question 'What is your first and last name?') to `{server_hostname}`. None of the other 
         information is important for our purposes.
+	- You can also set the DN via the command line `-dname` parameter like so: `-dname "cn={server_hostname}"`
 
     1. Store the private key and self-signed public key certificate under the alias `{server_hostname}` in the keystore file.
         - you will be prompted for a password to protect this specific key / certificate pair in the keystore.
+	- alternatively you can set the password using the `-storepass` and `-keypass` command line arguments.
 
 1. Create a Certificate Authority (CA) private key / root certificate:
 
@@ -59,8 +61,9 @@ For further information, some good resources are:
 
     This will:
 
-    1. Prompt you for information to put in the certificate. None of this is required for our purposes.
-
+    1. Prompt you for DN information to put in the certificate. None of this is required for our purposes, but 
+       - You can use the -subj command line parameter to avoid the prompt. This can't be blank. e.g.: `-subj "/C=US/ST=CA/L=Palo Alto/O=Confluent/CN=Confluent"`
+       
     2. Create a private key / self-signed public key cetificate pair where the private key isn't password protected. 
 
     3. If you would like to password protect the private key, omit the `-nodes` flag and you will be prompted for a password.
@@ -83,7 +86,7 @@ For further information, some good resources are:
     3. Import this signed certificate into your server keystore (over-writing the existing self-signed one). Before you can do this, you'll need to add the CA public key certificate as well:
 
     ```
-    keytool -keystore server.keystore.jks -alias CARoot -import -file ca-root.crt
+    keytool -keystore server.keystore.jks -alias CARoot -import -noprompt -file ca-root.crt
     keytool -keystore server.keystore.jks -alias {server_hostname} -import -file {server_hostname}_server.crt
     ```
 
