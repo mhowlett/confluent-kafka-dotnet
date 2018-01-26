@@ -91,7 +91,7 @@
     <param name="subject">
         The subject to check.
     </param>
-    <param name="schame">
+    <param name="schema">
         The schema to check.
     </param>
     <returns>
