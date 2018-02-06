@@ -53,13 +53,13 @@ namespace Confluent.Kafka.Serialization
         private const string AutoRegisterSchemaPropertyName = "avro.serializer.auto.register.schemas";
 
         /// <summary>
-        ///     The SchemaId corresponding to type <see cref="T"/>, or null if 
+        ///     The SchemaId corresponding to type <typeparamref name="T"/>, or null if
         ///     the serializer has yet to be invoked.
         /// </summary>
         public int? SchemaId { get; private set; } = null;
 
         /// <summary>
-        ///	    The <see cref="ISchemaRegistryClient"/> instance used for communication
+        ///	    The ISchemaRegistryClient instance used for communication
         ///	    with Confluent Schema Registry.
         /// </summary>
         public ISchemaRegistryClient SchemaRegistryClient { get; private set; }
@@ -94,7 +94,7 @@ namespace Confluent.Kafka.Serialization
         public bool IsKey { get; private set; }
 
         /// <summary>
-        ///     The avro schema used to write values of type <see cref="T"/>
+        ///     The avro schema used to write values of type <typeparamref name="T"/>
         /// </summary>
         public Avro.Schema WriterSchema { get; private set; }
 
@@ -193,7 +193,7 @@ namespace Confluent.Kafka.Serialization
         ///	    communication with Confluent Schema Registry.
         /// </param>
         /// <exception cref="InvalidOperationException">
-        ///	    The generic type <see cref="T"/> is not supported.
+        ///	    The generic type <typeparamref name="T"/> is not supported.
         /// </exception>
         public AvroSerializer(ISchemaRegistryClient schemaRegistryClient)
         {
@@ -202,7 +202,7 @@ namespace Confluent.Kafka.Serialization
         }
 
         /// <summary>
-        ///     Serialize an instance of type <see cref="T"/> to a byte array in avro format. The serialized
+        ///     Serialize an instance of type <typeparamref name="T"/> to a byte array in avro format. The serialized
         ///     data is preceeded by a "magic byte" (1 byte) and the id of the schema as registered
         ///     in Confluent's Schema Registry (4 bytes, network byte order). This call may block or throw 
         ///     on first use for a particular topic during schema registration.
@@ -251,7 +251,7 @@ namespace Confluent.Kafka.Serialization
             }
         }
 
-        /// <include file='../../Confluent.Kafka/include_docs.xml' path='API/Member[@name="ISerializer_Configure"]/*' />
+        /// <include file='../Confluent.Kafka/include_docs.xml' path='API/Member[@name="ISerializer_Configure"]/*' />
         public IEnumerable<KeyValuePair<string, object>> Configure(IEnumerable<KeyValuePair<string, object>> config, bool isKey)
         {
             var keyOrValue = isKey ? "Key" : "Value";
