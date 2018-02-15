@@ -22,7 +22,7 @@ using System.Threading.Tasks;
 namespace Confluent.SchemaRegistry
 {
     /// <summary>
-    ///     Defines a Schema Registry client.
+    ///     Defines a Confluent Schema Registry client.
     /// </summary>
     public interface ISchemaRegistryClient : IDisposable
     {
