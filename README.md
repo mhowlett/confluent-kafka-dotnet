@@ -51,12 +51,9 @@ To add a reference to a dotnet core project, execute the following at the comman
 dotnet add package -v 1.0-experimental-2 Confluent.Kafka
 ```
 
-Nuget packages corresponding to commits to release branches are available from the following nuget package source (Note: this is not a web url - you 
-should specify it in the nuget package manger):
-[https://ci.appveyor.com/nuget/confluent-kafka-dotnet](https://ci.appveyor.com/nuget/confluent-kafka-dotnet). The version suffix of these nuget packages 
-matches the appveyor build number. You can see which commit a particular build number corresponds to by looking at the 
-[AppVeyor build history](https://ci.appveyor.com/project/ConfluentClientEngineering/confluent-kafka-dotnet/history)
-
+Nuget packages corresponding to all release branch commits are available from the following nuget package source (Note: this is not a web url - you should specify it in the nuget package manger):
+[https://ci.appveyor.com/nuget/confluent-kafka-dotnet](https://ci.appveyor.com/nuget/confluent-kafka-dotnet). The version suffix of these nuget packages matches the appveyor build number. You 
+can see which commit a particular build number corresponds to by looking at the [AppVeyor build history](https://ci.appveyor.com/project/ConfluentClientEngineering/confluent-kafka-dotnet/history).
 
 ## Usage
 
@@ -117,8 +114,7 @@ public class Program
     using (var consumer = new Consumer<Null, string>(conf, null, new StringDeserializer(Encoding.UTF8)))
     {
       consumer.OnMessage += (_, msg)
-        => Console.WriteLine(
-          $"Read '{msg.Value}' from: {msg.TopicPartitionOffset}");
+        => Console.WriteLine($"Read '{msg.Value}' from: {msg.TopicPartitionOffset}");
 
       consumer.OnError += (_, error)
         => Console.WriteLine($"Error: {error}");
@@ -146,6 +142,10 @@ or with specific classes generated using the `avrogen` tool
 ```
 dotnet /path/to/avrogen.dll -s your_schema.asvc .
 ```
+
+### Confluent Cloud
+
+The [Confluent Cloud example](examples/ConfluentCloud) demonstrates how to configure the .NET client for use with [Confluent Cloud](https://www.confluent.io/confluent-cloud/).
 
 
 ## Build
