@@ -1,0 +1,11 @@
+{ 
+  "namespace": "MessageTypes",
+  "type": "record",
+  "doc": "Demonstrates use of logical types.",
+  "name": "LogicalTypeExample",
+  "fields": [
+    { "name": "StringValue", "type": "string" },
+    { "name": "DateValue", "type": { "type": "int", "logicalType": "date" } },
+    { "name": "DecimalValue", "type": { "type": "bytes", "logicalType": "decimal", "precision": "8", "scale": "2" } }
+  ]
+}
