@@ -20,13 +20,14 @@ using Confluent.Kafka.Impl;
 namespace Confluent.Kafka
 {
     /// <summary>
-    ///     A handle for a librdkafka client instance. Also encapsulates 
-    ///     a reference to the IClient instance that owns this handle.
+    ///     Encapsulates:
+    ///         1. A handle for a librdkafka instance.
+    ///         2. A reference to the IClient instance that owns the handle.
     /// </summary>
     public class Handle
     {
         internal IClient Owner { get; set; }
-
+        
         internal SafeKafkaHandle LibrdkafkaHandle { get; set; }
     }
 }

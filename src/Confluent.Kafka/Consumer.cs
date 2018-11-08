@@ -1177,13 +1177,13 @@ namespace Confluent.Kafka
         /// <summary>
         ///     Releases all resources used by this Consumer without
         ///     committing offsets and without alerting the group coordinator
-        ///     that the consumer is exiting the group. If you do not call 
+        ///     that the consumer is exiting the group. If you do not call
         ///     <see cref="Confluent.Kafka.Consumer.Close" /> or
         ///     <see cref="Confluent.Kafka.Consumer.Unsubscribe" />
-        ///     prior to Dispose, the group will rebalance after a timeout 
+        ///     prior to Dispose, the group will rebalance after a timeout
         ///     specified by group's `session.timeout.ms`.
-        ///     You should commit offsets / unsubscribe from the group before 
-        ///     calling this method (typically by calling 
+        ///     You should commit offsets / unsubscribe from the group before
+        ///     calling this method (typically by calling
         ///     <see cref="Confluent.Kafka.Consumer.Close()" />).
         /// </summary>
         public void Dispose()

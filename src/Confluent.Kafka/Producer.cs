@@ -58,7 +58,7 @@ namespace Confluent.Kafka
 
         private Dictionary<Type, object> serializers = new Dictionary<Type, object>();
 
-        private readonly SafeKafkaHandle kafkaHandle;
+        internal readonly SafeKafkaHandle kafkaHandle;
 
         private readonly Task callbackTask;
         private readonly CancellationTokenSource callbackCts;
