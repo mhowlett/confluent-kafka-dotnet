@@ -100,7 +100,7 @@ namespace Confluent.Kafka
                     .Select(configEntryPtr => extractConfigEntry(configEntryPtr))
                     .ToDictionary(e => e.Name);
 
-                result.Add(new DescribeConfigsExceptionResult { 
+                result.Add(new DescribeConfigsExceptionResult {
                     ConfigResource = new ConfigResource { Name = resourceName, Type = resourceConfigType },
                     Entries = configEntries,
                     Error = new Error(errorCode, errorReason)
@@ -122,7 +122,7 @@ namespace Confluent.Kafka
 
                             try
                             {
-                                var eventPtr = kafkaHandle.QueuePoll(resultQueue, POLL_TIMEOUT_MS);
+                                var eventPtr = this.KafkaHandle.QueuePoll(resultQueue, POLL_TIMEOUT_MS);
                                 if (eventPtr == IntPtr.Zero)
                                 {
                                     continue;
@@ -322,7 +322,7 @@ namespace Confluent.Kafka
 
             var completionSource = new TaskCompletionSource<List<DescribeConfigsResult>>();
             var gch = GCHandle.Alloc(completionSource);
-            Handle.LibrdkafkaHandle.DescribeConfigs(
+            this.KafkaHandle.DescribeConfigs(
                 resources, options, resultQueue,
                 GCHandle.ToIntPtr(gch));
             return completionSource.Task;
@@ -359,7 +359,7 @@ namespace Confluent.Kafka
             // physical address, it returns an id that refers to the object via
             // a handle-table.
             var gch = GCHandle.Alloc(completionSource);
-            Handle.LibrdkafkaHandle.AlterConfigs(
+            this.KafkaHandle.AlterConfigs(
                 configs, options, resultQueue,
                 GCHandle.ToIntPtr(gch));
             return completionSource.Task;
@@ -384,7 +384,7 @@ namespace Confluent.Kafka
 
             var completionSource = new TaskCompletionSource<List<CreateTopicExceptionResult>>();
             var gch = GCHandle.Alloc(completionSource);
-            Handle.LibrdkafkaHandle.CreateTopics(
+            this.KafkaHandle.CreateTopics(
                 topics, options, resultQueue,
                 GCHandle.ToIntPtr(gch));
             return completionSource.Task;
@@ -413,7 +413,7 @@ namespace Confluent.Kafka
 
             var completionSource = new TaskCompletionSource<List<DeleteTopicExceptionResult>>();
             var gch = GCHandle.Alloc(completionSource);
-            Handle.LibrdkafkaHandle.DeleteTopics(
+            this.KafkaHandle.DeleteTopics(
                 topics, options, resultQueue,
                 GCHandle.ToIntPtr(gch));
             return completionSource.Task;
@@ -440,17 +440,21 @@ namespace Confluent.Kafka
 
             var completionSource = new TaskCompletionSource<List<CreatePartitionsExceptionResult>>();
             var gch = GCHandle.Alloc(completionSource);
-            Handle.LibrdkafkaHandle.CreatePartitions(
+            this.KafkaHandle.CreatePartitions(
                 partitionsSpecifications, options, resultQueue,
                 GCHandle.ToIntPtr(gch));
             return completionSource.Task;
         }
 
-        private IClient ownedClient;
-        private Handle handle;
+        private Producer wrappedProducer = null;
 
-        private SafeKafkaHandle kafkaHandle
-            => handle.LibrdkafkaHandle;
+        private Handle handleFromConstructor = null;
+
+        private IClient UnderlyingClient
+            => handleFromConstructor != null ? handleFromConstructor.Owner : wrappedProducer;
+
+        private SafeKafkaHandle KafkaHandle
+            => handleFromConstructor != null ? handleFromConstructor.LibrdkafkaHandle : wrappedProducer.kafkaHandle;
 
 
         /// <summary>
@@ -465,20 +469,13 @@ namespace Confluent.Kafka
         /// </param>
         public AdminClient(IEnumerable<KeyValuePair<string, string>> config)
         {
-            if (
-                config.Where(prop => prop.Key.StartsWith("dotnet.producer.")).Count() > 0 ||
+            if (config.Where(prop => prop.Key.StartsWith("dotnet.producer.")).Count() > 0 ||
                 config.Where(prop => prop.Key.StartsWith("dotnet.consumer.")).Count() > 0)
             {
                 throw new ArgumentException("AdminClient configuration must not include producer or consumer specific configuration properties.");
             }
 
-            this.ownedClient = new Producer(new ProducerConfig(config));
-            this.handle = new Handle
-            { 
-                Owner = this,
-                LibrdkafkaHandle = ownedClient.Handle.LibrdkafkaHandle
-            };
-
+            this.wrappedProducer = new Producer(new ProducerConfig(config));
             Init();
         }
 
@@ -492,14 +489,13 @@ namespace Confluent.Kafka
         /// </param>
         public AdminClient(Handle handle)
         {
-            this.ownedClient = null;
-            this.handle = handle;
+            this.handleFromConstructor = handle;
             Init();
         }
 
         private void Init()
         {
-            resultQueue = kafkaHandle.CreateQueue();
+            resultQueue = this.KafkaHandle.CreateQueue();
 
             callbackCts = new CancellationTokenSource();
             callbackTask = StartPollTask(callbackCts.Token);
@@ -516,7 +512,7 @@ namespace Confluent.Kafka
         ///     The maximum period of time the call may block.
         /// </param>
         public List<GroupInfo> ListGroups(TimeSpan timeout)
-            => kafkaHandle.ListGroups(timeout.TotalMillisecondsAsInt());
+            => this.KafkaHandle.ListGroups(timeout.TotalMillisecondsAsInt());
 
 
         /// <summary>
@@ -536,7 +532,7 @@ namespace Confluent.Kafka
         ///     or null if this group does not exist.
         /// </returns>
         public GroupInfo ListGroup(string group, TimeSpan timeout)
-            => kafkaHandle.ListGroup(group, timeout.TotalMillisecondsAsInt());
+            => this.KafkaHandle.ListGroup(group, timeout.TotalMillisecondsAsInt());
 
 
         /// <summary>
@@ -558,12 +554,12 @@ namespace Confluent.Kafka
         /// </returns>
         public WatermarkOffsets GetWatermarkOffsets(TopicPartition topicPartition)
         {
-            if (!Handle.Owner.GetType().Name.Contains("Consumer"))
+            if (this.handleFromConstructor == null || !this.handleFromConstructor.Owner.GetType().Name.Contains("Consumer"))
             {
                 throw new InvalidCastException(
                     "GetWatermarkOffsets is only available on AdminClient instances constructed from a Consumer handle.");
             }
-            return kafkaHandle.GetWatermarkOffsets(topicPartition.Topic, topicPartition.Partition);
+            return this.KafkaHandle.GetWatermarkOffsets(topicPartition.Topic, topicPartition.Partition);
         }
 
 
@@ -581,7 +577,7 @@ namespace Confluent.Kafka
         ///     The requested WatermarkOffsets (see that class for additional documentation).
         /// </returns>
         public WatermarkOffsets QueryWatermarkOffsets(TopicPartition topicPartition, TimeSpan timeout)
-            => kafkaHandle.QueryWatermarkOffsets(topicPartition.Topic, topicPartition.Partition, timeout.TotalMillisecondsAsInt());
+            => this.KafkaHandle.QueryWatermarkOffsets(topicPartition.Topic, topicPartition.Partition, timeout.TotalMillisecondsAsInt());
 
 
 
@@ -591,7 +587,7 @@ namespace Confluent.Kafka
         ///     [API-SUBJECT-TO-CHANGE] - The API associated with this functionality is subject to change.
         /// </summary>
         public Metadata GetMetadata(TimeSpan timeout)
-            => kafkaHandle.GetMetadata(true, null, timeout.TotalMillisecondsAsInt());
+            => this.KafkaHandle.GetMetadata(true, null, timeout.TotalMillisecondsAsInt());
 
 
         /// <summary>
@@ -600,7 +596,7 @@ namespace Confluent.Kafka
         ///     [API-SUBJECT-TO-CHANGE] - The API associated with this functionality is subject to change.
         /// </summary>
         public Metadata GetMetadata(string topic, TimeSpan timeout)
-            => kafkaHandle.GetMetadata(false, kafkaHandle.getKafkaTopicHandle(topic), timeout.TotalMillisecondsAsInt());
+            => this.KafkaHandle.GetMetadata(false, this.KafkaHandle.getKafkaTopicHandle(topic), timeout.TotalMillisecondsAsInt());
 
 
         /// <summary>
@@ -608,8 +604,8 @@ namespace Confluent.Kafka
         /// </summary>
         public event EventHandler<LogMessage> OnLog
         {
-            add { handle.Owner.OnLog += value; }
-            remove { handle.Owner.OnLog -= value; }
+            add { UnderlyingClient.OnLog += value; }
+            remove { UnderlyingClient.OnLog -= value; }
         }
 
         /// <summary>
@@ -617,8 +613,8 @@ namespace Confluent.Kafka
         /// </summary>
         public event EventHandler<string> OnStatistics
         {
-            add { handle.Owner.OnStatistics += value; }
-            remove { handle.Owner.OnStatistics -= value; }
+            add { UnderlyingClient.OnStatistics += value; }
+            remove { UnderlyingClient.OnStatistics -= value; }
         }
 
         /// <summary>
@@ -626,22 +622,22 @@ namespace Confluent.Kafka
         /// </summary>
         public event EventHandler<ErrorEvent> OnError
         {
-            add { handle.Owner.OnError += value; }
-            remove { handle.Owner.OnError -= value; }
+            add { UnderlyingClient.OnError += value; }
+            remove { UnderlyingClient.OnError -= value; }
         }
 
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.IClient.AddBrokers(string)" />
         /// </summary>
         public int AddBrokers(string brokers)
-            => kafkaHandle.AddBrokers(brokers);
+            => this.KafkaHandle.AddBrokers(brokers);
 
 
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.IClient.Name" />
         /// </summary>
         public string Name
-            => kafkaHandle.Name;
+            => this.KafkaHandle.Name;
 
 
         /// <summary>
@@ -649,7 +645,9 @@ namespace Confluent.Kafka
         ///     client instance.
         /// </summary>
         public Handle Handle
-            => handle;
+            => handleFromConstructor != null 
+                ? handleFromConstructor 
+                : new Handle { Owner = wrappedProducer, LibrdkafkaHandle = wrappedProducer.kafkaHandle };
 
 
         /// <summary>
@@ -702,11 +700,11 @@ namespace Confluent.Kafka
 
         private void DisposeResources()
         {
-            kafkaHandle.DestroyQueue(resultQueue);
+            this.KafkaHandle.DestroyQueue(resultQueue);
 
-            if (handle.Owner == this)
+            if (wrappedProducer != null)
             {
-                ownedClient.Dispose();
+                wrappedProducer.Dispose();
             }
         }
 

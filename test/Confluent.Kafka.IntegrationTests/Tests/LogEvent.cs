@@ -20,6 +20,7 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using Xunit;
+using Confluent.Kafka.Admin;
 
 
 namespace Confluent.Kafka.IntegrationTests
@@ -27,12 +28,12 @@ namespace Confluent.Kafka.IntegrationTests
     public static partial class Tests
     {
         /// <summary>
-        ///     Tests that log messages are received by OnLog on all Producer and Consumer variants.
+        ///     Tests that log messages are received by OnLog on Producer, Consumer and AdminClients
         /// </summary>
         [Theory, MemberData(nameof(KafkaParameters))]
-        public static void LogDelegate(string bootstrapServers, string singlePartitionTopic, string partitionedTopic)
+        public static void LogEvent(string bootstrapServers, string singlePartitionTopic, string partitionedTopic)
         {
-            LogToFile("start LogDelegate");
+            LogToFile("start LogEvent");
 
             var logCount = 0;
 
@@ -44,6 +45,12 @@ namespace Confluent.Kafka.IntegrationTests
             };
 
             var producerConfig = new ProducerConfig
+            {
+                BootstrapServers = bootstrapServers,
+                Debug = "all"
+            };
+
+            var adminClientConfig = new AdminClientConfig
             {
                 BootstrapServers = bootstrapServers,
                 Debug = "all"
@@ -68,13 +75,48 @@ namespace Confluent.Kafka.IntegrationTests
                     => logCount += 1;
 
                 consumer.Assign(new TopicPartition(singlePartitionTopic, 0));
-                
+
                 consumer.Consume(TimeSpan.FromSeconds(10));
             }
             Assert.True(logCount > 0);
 
+            logCount = 0;
+            using (var adminClient = new AdminClient(adminClientConfig))
+            {
+                adminClient.OnLog += (_, m)
+                    => logCount += 1;
+
+                var configResource = new ConfigResource { Name = "0", Type = ResourceType.Broker };
+                adminClient.DescribeConfigsAsync(new List<ConfigResource> { configResource }).Wait();
+            }
+            Assert.True(logCount > 0);
+
+            logCount = 0;
+            using (var producer = new Producer(producerConfig))
+            using (var adminClient = new AdminClient(producer.Handle))
+            {
+                adminClient.OnLog += (_, m)
+                    => logCount += 1;
+
+                var configResource = new ConfigResource { Name = "0", Type = ResourceType.Broker };
+                adminClient.DescribeConfigsAsync(new List<ConfigResource> { configResource }).Wait();
+            }
+            Assert.True(logCount > 0);
+
+            logCount = 0;
+            using (var consumer = new Consumer(consumerConfig))
+            using (var adminClient = new AdminClient(consumer.Handle))
+            {
+                adminClient.OnLog += (_, m)
+                    => logCount += 1;
+
+                var configResource = new ConfigResource { Name = "0", Type = ResourceType.Broker };
+                adminClient.DescribeConfigsAsync(new List<ConfigResource> { configResource }).Wait();
+            }
+            Assert.True(logCount > 0);
+
             Assert.Equal(0, Library.HandleCount);
-            LogToFile("end   LogDelegate");
+            LogToFile("end   LogEvent");
         }
 
     }
