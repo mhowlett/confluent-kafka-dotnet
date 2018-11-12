@@ -72,6 +72,14 @@ namespace Confluent.Kafka.IntegrationTests
                 record = consumer.Consume<Null, string>(TimeSpan.FromSeconds(10));
                 Assert.NotNull(record.Message);
                 Assert.Equal(checkValue, record.Message.Value);
+
+                // check re-consume.
+                var consumeResult1 = consumer.Consume<Null, string>(TimeSpan.FromSeconds(10));
+                Assert.NotNull(consumeResult1);
+                consumer.Seek(consumeResult1.TopicPartitionOffset);
+                var consumeResult2 = consumer.Consume<Null, string>(TimeSpan.FromSeconds(10));
+                Assert.NotNull(consumeResult2);
+                Assert.Equal(consumeResult1.Message.Value, consumeResult2.Message.Value);
             }
 
             Assert.Equal(0, Library.HandleCount);
