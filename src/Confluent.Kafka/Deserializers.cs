@@ -34,7 +34,7 @@ namespace Confluent.Kafka
     /// <returns>
     ///     The deserialized value.
     /// </returns>
-    public delegate T Deserializer<T>(ReadOnlySpan<byte> data);
+    public delegate T Deserializer<T>(ReadOnlySpan<byte> data, bool isNull);
 
     /// <summary>
     ///     Deserializers that can be used with <see cref="Confluent.Kafka.Consumer" />.
@@ -44,20 +44,20 @@ namespace Confluent.Kafka
         /// <summary>
         ///     Deserializes a UTF8 encoded string.
         /// </summary>
-        public static Deserializer<string> UTF8 = data =>
+        public static Deserializer<string> UTF8 = (data, isNull) =>
         {
-            if (data.IsEmpty)
+            if (isNull)
             {
                 return null;
             }
 
             try
             {
-                #if NETCOREAPP2_1
+#if NETCOREAPP2_1
                     return Encoding.UTF8.GetString(data);
-                #else
-                    return Encoding.UTF8.GetString(data.ToArray());
-                #endif
+#else
+                return Encoding.UTF8.GetString(data.ToArray());
+#endif
             }
             catch (Exception e)
             {
@@ -68,9 +68,9 @@ namespace Confluent.Kafka
         /// <summary>
         ///     Deserializes a null value to a null value.
         /// </summary>
-        public static Deserializer<Null> Null = data =>
+        public static Deserializer<Null> Null = (data, isNull) =>
         {
-            if (!data.IsEmpty)
+            if (!isNull)
             {
                 throw new DeserializeException("Deserializer<Null> may only be used to deserialize data that is null.");
             }
@@ -81,7 +81,7 @@ namespace Confluent.Kafka
         /// <summary>
         ///     'Deserializes' any value to a null value.
         /// </summary>
-        public static Deserializer<Ignore> Ignore = data => null;
+        public static Deserializer<Ignore> Ignore = (data, isNull) => null;
 
         /// <summary>
         ///     Deserializes a big endian encoded (network byte ordered) <see cref="System.Int64"/> value from a byte array.
@@ -89,9 +89,9 @@ namespace Confluent.Kafka
         /// <returns>
         ///     The deserialized <see cref="System.Int64"/> value.
         /// </returns>
-        public static Deserializer<long> Long = data =>
+        public static Deserializer<long> Long = (ReadOnlySpan<byte> data, bool isNull) =>
         {
-            if (data.IsEmpty)
+            if (isNull)
             {
                 throw new DeserializeException($"Null data encountered deserializing Int64 value.");
             }
@@ -119,9 +119,9 @@ namespace Confluent.Kafka
         /// <returns>
         ///     The deserialized <see cref="System.Int32"/> value.
         /// </returns>
-        public static Deserializer<int> Int32 = data =>
+        public static Deserializer<int> Int32 = (ReadOnlySpan<byte> data, bool isNull) =>
         {
-            if (data.IsEmpty)
+            if (isNull)
             {
                 throw new DeserializeException($"Null data encountered deserializing an Int32 value");
             }
@@ -133,10 +133,10 @@ namespace Confluent.Kafka
 
             // network byte order -> big endian -> most significant byte in the smallest address.
             return
-                ((data[0]) << 24) |
-                ((data[1]) << 16) |
-                ((data[2]) << 8) |
-                data[3];
+                (((int)data[0]) << 24) |
+                (((int)data[1]) << 16) |
+                (((int)data[2]) << 8) |
+                (int)data[3];
         };
 
         /// <summary>
@@ -145,9 +145,9 @@ namespace Confluent.Kafka
         /// <returns>
         ///     The deserialized System.Single value.
         /// </returns>
-        public static Deserializer<float> Float = data =>
+        public static Deserializer<float> Float = (ReadOnlySpan<byte> data, bool isNull) =>
         {
-            if (data.IsEmpty)
+            if (isNull)
             {
                 throw new DeserializeException($"Null data encountered deserializing an float value.");
             }
@@ -175,11 +175,11 @@ namespace Confluent.Kafka
             {
                 try
                 {
-                    #if NETCOREAPP2_1
+#if NETCOREAPP2_1
                         return BitConverter.ToSingle(data);
-                    #else
-                        return BitConverter.ToSingle(data.ToArray(), 0);
-                    #endif
+#else
+                    return BitConverter.ToSingle(data.ToArray(), 0);
+#endif
                 }
                 catch (Exception e)
                 {
@@ -194,9 +194,9 @@ namespace Confluent.Kafka
         /// <returns>
         ///     The deserialized System.Double value.
         /// </returns>
-        public static Deserializer<double> Double = data =>
+        public static Deserializer<double> Double = (ReadOnlySpan<byte> data, bool isNull) =>
         {
-            if (data.IsEmpty)
+            if (isNull)
             {
                 throw new DeserializeException($"Null data encountered deserializing an double value.");
             }
@@ -228,11 +228,11 @@ namespace Confluent.Kafka
             {
                 try
                 {
-                    #if NETCOREAPP2_1
+#if NETCOREAPP2_1
                                     return BitConverter.ToDouble(data);
-                    #else
-                                    return BitConverter.ToDouble(data.ToArray(), 0);
-                    #endif
+#else
+                    return BitConverter.ToDouble(data.ToArray(), 0);
+#endif
                 }
                 catch (Exception e)
                 {
@@ -244,9 +244,9 @@ namespace Confluent.Kafka
         /// <summary>
         ///     Deserializes a System.Byte[] value (or null).
         /// </summary>
-        public static Deserializer<byte[]> ByteArray = data =>
+        public static Deserializer<byte[]> ByteArray = (data, isNull) =>
         {
-            if (data.IsEmpty) { return null; }
+            if (isNull) { return null; }
             return data.ToArray();
         };
 

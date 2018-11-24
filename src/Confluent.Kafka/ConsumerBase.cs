@@ -362,7 +362,8 @@ namespace Confluent.Kafka
                         key = keyDeserializer(
                             msg.key == IntPtr.Zero ?
                                 ReadOnlySpan<byte>.Empty :
-                                new ReadOnlySpan<byte>(msg.key.ToPointer(), (int)msg.key_len)
+                                new ReadOnlySpan<byte>(msg.key.ToPointer(), (int)msg.key_len),
+                            msg.key == IntPtr.Zero
                         );
                     }
                 }
@@ -393,7 +394,8 @@ namespace Confluent.Kafka
                         val = valueDeserializer(
                             msg.val == IntPtr.Zero ?
                                 ReadOnlySpan<byte>.Empty :
-                                new ReadOnlySpan<byte>(msg.val.ToPointer(), (int)msg.len)
+                                new ReadOnlySpan<byte>(msg.val.ToPointer(), (int)msg.len),
+                            msg.key == IntPtr.Zero
                         );
                     }
                 }
