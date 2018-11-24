@@ -26,7 +26,7 @@ namespace Confluent.Kafka.UnitTests.Serialization
         [MemberData(nameof(TestData))]
         public void CanReconstructLong(long value)
         {
-            Assert.Equal(value, Deserializers.Long(Serializers.Long(value), false));
+            Assert.Equal(value, Deserializers.Long(Serializers.Long(value)));
         }
 
         [Fact]
@@ -40,14 +40,14 @@ namespace Confluent.Kafka.UnitTests.Serialization
         [Fact]
         public void DeserializeArgNull()
         {
-            Assert.ThrowsAny<DeserializeException>(() => Deserializers.Long(null, true));
+            Assert.ThrowsAny<DeserializeException>(() => Deserializers.Long(null));
         }
 
         [Fact]
         public void DeserializeArgLengthNotEqual8Throw()
         {
-            Assert.ThrowsAny<DeserializeException>(() => Deserializers.Long(new byte[7], false));
-            Assert.ThrowsAny<DeserializeException>(() => Deserializers.Long(new byte[9], false));
+            Assert.ThrowsAny<DeserializeException>(() => Deserializers.Long(new byte[7]));
+            Assert.ThrowsAny<DeserializeException>(() => Deserializers.Long(new byte[9]));
         }
 
         public static IEnumerable<object[]> TestData()
