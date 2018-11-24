@@ -65,7 +65,7 @@ namespace Confluent.Kafka.UnitTests.Serialization
         {
             foreach (int theInt in toTest)
             {
-                var reconstructed = Deserializers.Int32(Serializers.Int32(theInt));
+                var reconstructed = Deserializers.Int32(Serializers.Int32(theInt), false);
                 Assert.Equal(theInt, reconstructed);
             }
         }
