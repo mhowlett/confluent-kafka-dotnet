@@ -356,7 +356,7 @@ namespace Confluent.Kafka
                 TKey key;
                 try
                 {
-                    if (keyDeserializer == null) { valueDeserializer = Deserializers.GetBuiltin<TValue>(); }
+                    if (keyDeserializer == null) { keyDeserializer = Deserializers.GetBuiltin<TKey>(); }
                     unsafe
                     {
                         key = keyDeserializer(
@@ -387,7 +387,7 @@ namespace Confluent.Kafka
                 TValue val;
                 try
                 {
-                    if (valueDeserializer == null) { keyDeserializer = Deserializers.GetBuiltin<TKey>(); }
+                    if (valueDeserializer == null) { valueDeserializer = Deserializers.GetBuiltin<TValue>(); }
                     unsafe
                     {
                         val = valueDeserializer(
