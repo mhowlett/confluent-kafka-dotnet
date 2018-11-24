@@ -38,7 +38,7 @@ namespace Confluent.Kafka
         ///     OnPartitionEOF events may be invoked as a side-effect of
         ///     calling this method (on the same thread).
         /// </remarks>
-        public static ConsumeResult ConsumeAsByteArray(this IConsumerBase consumer, CancellationToken cancellationToken = default(CancellationToken))
+        public static ConsumeResult Consume(this IConsumerBase consumer, CancellationToken cancellationToken = default(CancellationToken))
         {
             while (true)
             {
@@ -76,8 +76,8 @@ namespace Confluent.Kafka
         ///     OnPartitionEOF events may be invoked as a side-effect of 
         ///     calling this method (on the same thread).
         /// </remarks>
-        public static ConsumeResult ConsumeAsByteArray(this IConsumerBase consumer, TimeSpan timeout)
-            => consumer.ConsumeAsByteArray(timeout.TotalMillisecondsAsInt());
+        public static ConsumeResult Consume(this IConsumerBase consumer, TimeSpan timeout)
+            => consumer.Consume(timeout.TotalMillisecondsAsInt());
 
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Confluent.Kafka
         ///     OnPartitionEOF events may be invoked as a side-effect of 
         ///     calling this method (on the same thread).
         /// </remarks>
-        public static ConsumeResult ConsumeAsByteArray(this IConsumerBase consumer, int millisecondsTimeout)
+        public static ConsumeResult Consume(this IConsumerBase consumer, int millisecondsTimeout)
         {
             var result = consumer.Consume(millisecondsTimeout, Deserializers.ByteArray, Deserializers.ByteArray);
             if (result == null) { return null; }

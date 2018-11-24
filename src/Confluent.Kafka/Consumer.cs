@@ -141,7 +141,7 @@ namespace Confluent.Kafka
         ///     calling this method (on the same thread).
         /// </remarks>
         public ConsumeResult<TKey, TValue> Consume<TKey, TValue>(TimeSpan timeout)
-            => Consume(timeout.TotalMillisecondsAsInt());
+            => Consume<TKey, TValue>(timeout.TotalMillisecondsAsInt());
     }
 
     /// <summary>

@@ -704,8 +704,8 @@ namespace Confluent.Kafka
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.Consumer.Commit{TKey, TValue}(ConsumeResult{TKey, TValue}, CancellationToken)" />
         /// </summary>
-        public TopicPartitionOffset Commit(
-            ConsumeResult result, CancellationToken cancellationToken = default(CancellationToken))
+        public TopicPartitionOffset Commit<TKey, TValue>(
+            ConsumeResult<TKey, TValue> result, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (result.Message == null)
             {

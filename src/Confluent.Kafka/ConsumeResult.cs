@@ -17,6 +17,7 @@
 // Refer to LICENSE for more information.
 
 
+
 namespace Confluent.Kafka
 {
     /// <summary>
