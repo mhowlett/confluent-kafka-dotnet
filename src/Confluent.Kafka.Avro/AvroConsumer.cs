@@ -122,7 +122,7 @@ namespace Confluent.Kafka.AvroSerdes
         {
             try
             {
-                var result = await Task.Run(() => Consume(cancellationToken));
+                var result = Consume<byte[], byte[]>(cancellationToken);
                 if (result == null) { return null; }
 
                 return new ConsumeResult<TKey, TValue>
@@ -133,11 +133,11 @@ namespace Confluent.Kafka.AvroSerdes
                         Timestamp = result.Timestamp,
                         Headers = result.Headers,
                         Key = keySerdeType == SerdeType.Avro
-                            ? await (GetOrCreateAvroDeserializer<TKey>()).Deserialize(schemaRegistryClient, result.Topic, result.Key, true)
-                            : GetDeserializer<TKey>()(result.Key, result.Key == null),
+                            ? await GetOrCreateAvroDeserializer<TKey>().Deserialize(schemaRegistryClient, result.Topic, result.Key, true)
+                            : GetDeserializer<TKey>()(result.Key),
                         Value = valueSerdeType == SerdeType.Avro
                             ? await (GetOrCreateAvroDeserializer<TValue>()).Deserialize(schemaRegistryClient, result.Topic, result.Value, false)
-                            : GetDeserializer<TValue>()(result.Value, result.Value == null)
+                            : GetDeserializer<TValue>()(result.Value)
                     }
                 };
             }
@@ -172,7 +172,7 @@ namespace Confluent.Kafka.AvroSerdes
         {
             try
             {
-                var result = await Task.Run(() => Consume(timeout));
+                var result = Consume<byte[], byte[]>(timeout);
                 if (result == null) { return null; }
 
                 return new ConsumeResult<TKey, TValue>
@@ -184,10 +184,10 @@ namespace Confluent.Kafka.AvroSerdes
                         Headers = result.Headers,
                         Key = keySerdeType == SerdeType.Avro
                             ? await GetOrCreateAvroDeserializer<TKey>().Deserialize(schemaRegistryClient, result.Topic, result.Key, true)
-                            : GetDeserializer<TKey>()(result.Key, result.Key == null),
+                            : GetDeserializer<TKey>()(result.Key),
                         Value = valueSerdeType == SerdeType.Avro
                             ? await GetOrCreateAvroDeserializer<TValue>().Deserialize(schemaRegistryClient, result.Topic, result.Value, false)
-                            : GetDeserializer<TValue>()(result.Value, result.Value == null)
+                            : GetDeserializer<TValue>()(result.Value)
                     }
                 };
             }
