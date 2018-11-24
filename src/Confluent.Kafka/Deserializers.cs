@@ -46,10 +46,8 @@ namespace Confluent.Kafka
         /// </summary>
         public static Deserializer<string> UTF8 = (data, isNull) =>
         {
-            if (isNull)
-            {
-                return null;
-            }
+            if (isNull) { return null; }
+            if (data.IsEmpty) { return string.Empty; }
 
             try
             {
