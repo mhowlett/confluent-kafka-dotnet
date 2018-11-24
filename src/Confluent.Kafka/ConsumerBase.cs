@@ -278,8 +278,8 @@ namespace Confluent.Kafka
         /// <returns></returns>
         public ConsumeResult<TKey, TValue> Consume<TKey, TValue>(
             int millisecondsTimeout,
-            Deserializer<TKey> keyDeserializer,
-            Deserializer<TValue> valueDeserializer)
+            Deserializer<TKey> keyDeserializer = null,
+            Deserializer<TValue> valueDeserializer = null)
         {
             var msgPtr = kafkaHandle.ConsumerPoll((IntPtr)millisecondsTimeout);
             if (msgPtr == IntPtr.Zero) { return null; }
