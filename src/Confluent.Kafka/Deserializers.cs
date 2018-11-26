@@ -23,6 +23,20 @@ using System.Text;
 namespace Confluent.Kafka
 {
     /// <summary>
+    ///     A deserializer for use with <see cref="Confluent.Kafka.Consumer" />
+    /// </summary>
+    /// <param name="data">
+    ///     The data to deserialize.
+    /// </param>
+    /// <param name="isNull">
+    ///     Whether or not the value is null.
+    /// </param>
+    /// <returns>
+    ///     The deserialized value.
+    /// </returns>
+    public delegate T Deserializer<T>(ReadOnlySpan<byte> data, bool isNull);
+
+    /// <summary>
     ///     Deserializers that can be used with <see cref="Confluent.Kafka.Consumer" />.
     /// </summary>
     public static class Deserializers
@@ -32,18 +46,16 @@ namespace Confluent.Kafka
         /// </summary>
         public static Deserializer<string> UTF8 = (data, isNull) =>
         {
-            if (isNull)
-            {
-                return null;
-            }
+            if (isNull) { return null; }
+            if (data.IsEmpty) { return string.Empty; }
 
             try
             {
-                #if NETCOREAPP2_1
+#if NETCOREAPP2_1
                     return Encoding.UTF8.GetString(data);
-                #else
-                    return Encoding.UTF8.GetString(data.ToArray());
-                #endif
+#else
+                return Encoding.UTF8.GetString(data.ToArray());
+#endif
             }
             catch (Exception e)
             {
@@ -161,11 +173,11 @@ namespace Confluent.Kafka
             {
                 try
                 {
-                    #if NETCOREAPP2_1
+#if NETCOREAPP2_1
                         return BitConverter.ToSingle(data);
-                    #else
-                        return BitConverter.ToSingle(data.ToArray(), 0);
-                    #endif
+#else
+                    return BitConverter.ToSingle(data.ToArray(), 0);
+#endif
                 }
                 catch (Exception e)
                 {
@@ -214,11 +226,11 @@ namespace Confluent.Kafka
             {
                 try
                 {
-                    #if NETCOREAPP2_1
+#if NETCOREAPP2_1
                                     return BitConverter.ToDouble(data);
-                    #else
-                                    return BitConverter.ToDouble(data.ToArray(), 0);
-                    #endif
+#else
+                    return BitConverter.ToDouble(data.ToArray(), 0);
+#endif
                 }
                 catch (Exception e)
                 {
@@ -235,5 +247,24 @@ namespace Confluent.Kafka
             if (isNull) { return null; }
             return data.ToArray();
         };
+
+
+        /// <summary>
+        ///     Try to get the Serializer for the gievn type
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static Deserializer<T> GetBuiltin<T>()
+        {
+            if (typeof(T) == typeof(string)) { return (Deserializer<T>)(object)UTF8; }
+            if (typeof(T) == typeof(Null)) { return (Deserializer<T>)(object)Null; }
+            if (typeof(T) == typeof(long)) { return (Deserializer<T>)(object)Long; }
+            if (typeof(T) == typeof(int)) { return (Deserializer<T>)(object)Int32; }
+            if (typeof(T) == typeof(float)) { return (Deserializer<T>)(object)Float; }
+            if (typeof(T) == typeof(double)) { return (Deserializer<T>)(object)Double; }
+            if (typeof(T) == typeof(byte[])) { return (Deserializer<T>)(object)ByteArray; }
+
+            throw new ArgumentException($"No Deserializer available for type: {typeof(T).Name}");
+        }
     }
 }

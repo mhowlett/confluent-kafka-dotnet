@@ -23,6 +23,18 @@ using System.Text;
 namespace Confluent.Kafka
 {
     /// <summary>
+    ///     A serializer for use with <see cref="Confluent.Kafka.Producer" />
+    /// </summary>
+    /// <param name="data">
+    ///     The value to serialize.
+    /// </param>
+    /// <returns>
+    ///     The serialized value.
+    /// </returns>
+    public delegate byte[] Serializer<T>(T data);
+
+
+    /// <summary>
     ///     Serializers that can be used with <see cref="Confluent.Kafka.Producer" />.
     /// </summary>
     public static class Serializers
@@ -139,5 +151,23 @@ namespace Confluent.Kafka
         ///     a byte array. Byte order is original order. 
         /// </summary>
         public static Serializer<byte[]> ByteArray = (data) => data;
+
+        /// <summary>
+        ///     Try to get the Serializer for the gievn type
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static Serializer<T> GetBuiltin<T>()
+        {
+            if(typeof(T) == typeof(string)) { return (Serializer<T>)(object)UTF8; }
+            if(typeof(T) == typeof(Null)) { return (Serializer<T>)(object)Null; }
+            if(typeof(T) == typeof(long)) { return (Serializer<T>)(object)Long; }
+            if(typeof(T) == typeof(int)) { return (Serializer<T>)(object)Int32; }
+            if(typeof(T) == typeof(float)) { return (Serializer<T>)(object)Float; }
+            if(typeof(T) == typeof(double)) { return (Serializer<T>)(object)Double; }
+            if(typeof(T) == typeof(byte[])) { return (Serializer<T>)(object)ByteArray; }
+
+            throw new ArgumentException($"No Serializer available for type: {typeof(T).Name}");
+        }
     }
 }
