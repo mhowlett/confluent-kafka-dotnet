@@ -1,4 +1,4 @@
-// Copyright 2018 Confluent Inc.
+﻿// Copyright 2018 Confluent Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,21 +23,21 @@ namespace Confluent.Kafka
     /// <summary>
     ///     Defines a high-level Apache Kafka consumer.
     /// </summary>
-    public interface IConsumer : IConsumerBase
+    public interface IConsumerAsync : IConsumerBase
     {
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.Consumer.Consume(CancellationToken)" />
         /// </summary>
-        ConsumeResult Consume(CancellationToken cancellationToken = default(CancellationToken));
+        Task<ConsumeResult> ConsumeAsync(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.Consumer.Consume(TimeSpan)" />
         /// </summary>
-        ConsumeResult Consume(TimeSpan timeout);
+        Task<ConsumeResult> ConsumeAsync(TimeSpan timeout);
 
         /// <summary>
         ///     Poll for new messages / events. Blocks until a consume result
-        ///     is available or the timeout period has elapsed.
+        ///     is available or the operation has been cancelled.
         /// </summary>
         /// <param name="millisecondsTimeout">
         ///     The maximum period of time the call may block.
@@ -46,29 +46,29 @@ namespace Confluent.Kafka
         ///     The consume result.
         /// </returns>
         /// <remarks>
-        ///     OnPartitionsAssigned/Revoked, OnOffsetsCommitted and 
-        ///     OnPartitionEOF events may be invoked as a side-effect of 
+        ///     OnPartitionsAssigned/Revoked, OnOffsetsCommitted and
+        ///     OnPartitionEOF events may be invoked as a side-effect of
         ///     calling this method (on the same thread).
         /// </remarks>
-        ConsumeResult Consume(int millisecondsTimeout);
+        Task<ConsumeResult> ConsumeAsync(int millisecondsTimeout);
     }
 
     /// <summary>
     ///     Defines a high-level Apache Kafka consumer (with key and 
     ///     value deserialization).
     /// </summary>
-    public interface IConsumer<TKey, TValue> : IConsumerBase
+    public interface IConsumerAsync<TKey, TValue> : IConsumerBase
     {
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.Consumer{TKey, TValue}.Consume(CancellationToken)" />
         /// </summary>
-        ConsumeResult<TKey, TValue> Consume(CancellationToken cancellationToken = default(CancellationToken));
+        Task<ConsumeResult<TKey, TValue>> ConsumeAsync(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.Consumer{TKey, TValue}.Consume(TimeSpan)" />
         /// </summary>
-        ConsumeResult<TKey, TValue> Consume(TimeSpan timeout);
-
+        Task<ConsumeResult<TKey, TValue>> ConsumeAsync(TimeSpan timeout);
+        
         /// <summary>
         ///     Poll for new messages / events. Blocks until a consume result
         ///     is available or the operation has been cancelled.

@@ -47,11 +47,7 @@ namespace Confluent.Kafka
         private readonly bool enableTimestampMarshaling = true;
         private readonly bool enableTopicNamesMarshaling = true;
 
-        private Dictionary<Type, object> deserializers = new Dictionary<Type, object>();
-
         private readonly SafeKafkaHandle kafkaHandle;
-
-        private static readonly byte[] EmptyBytes = new byte[0];
 
 
         private readonly Librdkafka.ErrorDelegate errorCallbackDelegate;
@@ -71,7 +67,6 @@ namespace Confluent.Kafka
             return 0; // instruct librdkafka to immediately free the json ptr.
         }
 
-        private object loggerLockObj = new object();
         private readonly Librdkafka.LogDelegate logCallbackDelegate;
         private void LogCallback(IntPtr rk, SyslogLevel level, string fac, string buf)
         {
@@ -297,8 +292,8 @@ namespace Confluent.Kafka
         /// </remarks>
         protected ConsumeResult<TKey, TValue> Consume<TKey, TValue>(
             int millisecondsTimeout,
-            Deserializer<TKey> keyDeserializer,
-            Deserializer<TValue> valueDeserializer)
+            IDeserializer<TKey> keyDeserializer,
+            IDeserializer<TValue> valueDeserializer)
         {
             var msgPtr = kafkaHandle.ConsumerPoll((IntPtr)millisecondsTimeout);
             if (msgPtr == IntPtr.Zero)
@@ -382,8 +377,8 @@ namespace Confluent.Kafka
                 {
                     unsafe
                     {
-                        key = keyDeserializer(
-                            msg.key == IntPtr.Zero ? EmptyBytes : new ReadOnlySpan<byte>(msg.key.ToPointer(), (int)msg.key_len),
+                        key = keyDeserializer.Deserialize(
+                            msg.key == IntPtr.Zero ? ReadOnlySpan<byte>.Empty : new ReadOnlySpan<byte>(msg.key.ToPointer(), (int)msg.key_len),
                             msg.key == IntPtr.Zero, true, new MessageAncillary { Timestamp = timestamp, Headers = headers }, new TopicPartition(topic, msg.partition)
                         );
                     }
@@ -411,8 +406,8 @@ namespace Confluent.Kafka
                 {
                     unsafe
                     {
-                        val = valueDeserializer(
-                            msg.val == IntPtr.Zero ? EmptyBytes : new ReadOnlySpan<byte>(msg.val.ToPointer(), (int)msg.len),
+                        val = valueDeserializer.Deserialize(
+                            msg.val == IntPtr.Zero ? ReadOnlySpan<byte>.Empty : new ReadOnlySpan<byte>(msg.val.ToPointer(), (int)msg.len),
                             msg.val == IntPtr.Zero, false, new MessageAncillary { Timestamp = timestamp, Headers = headers }, new TopicPartition(topic, msg.partition));
                     }
                 }
