@@ -79,23 +79,7 @@ namespace Confluent.Kafka
         {
             // TODO: change the Consume method, or add to ConsumerBase to expose raw data, and push
             // burden of msgPtr dispose on the caller.
-            var rawResult = Consume(millisecondsTimeout, Deserializers.ByteArray, Deserializers.ByteArray);
-            if (rawResult == null) { return null; }
-
-            TKey key = await keyDeserializer.DeserializeAsync(rawResult.Key, rawResult.Key == null, true, rawResult.Message, rawResult.TopicPartition);
-            TValue val = await valueDeserializer.DeserializeAsync(rawResult.Value, rawResult.Value == null, false, rawResult.Message, rawResult.TopicPartition);
-
-            return new ConsumeResult<TKey, TValue>
-            {
-                TopicPartitionOffset = rawResult.TopicPartitionOffset,
-                Message = new Message<TKey, TValue>
-                {
-                    Key = key,
-                    Value = val,
-                    Headers = rawResult.Headers,
-                    Timestamp = rawResult.Timestamp
-                }
-            };
+            return await ConsumeAsync(millisecondsTimeout, keyDeserializer, valueDeserializer);
         }
 
         /// <summary>
