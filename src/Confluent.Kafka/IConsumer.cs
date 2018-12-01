@@ -84,6 +84,6 @@ namespace Confluent.Kafka
         ///     OnPartitionEOF events may be invoked as a side-effect of
         ///     calling this method (on the same thread).
         /// </remarks>
-        Task<ConsumeResult<TKey, TValue>> ConsumeAsync(int millisecondsTimeout);
+        ConsumeResult<TKey, TValue> Consume(int millisecondsTimeout);
     }
 }
