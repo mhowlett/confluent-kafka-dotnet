@@ -298,23 +298,13 @@ namespace Confluent.Kafka
             IDeserializer<TValue> valueDeserializer)
         {
             var msgPtr = kafkaHandle.ConsumerPoll((IntPtr)millisecondsTimeout);
-            if (msgPtr == IntPtr.Zero)
-            {
-                return null;
-            }
+            if (msgPtr == IntPtr.Zero) { return null; }
 
             try
             {
                 var msg = Util.Marshal.PtrToStructureUnsafe<rd_kafka_message>(msgPtr);
 
-                string topic = null;
-                if (this.enableTopicNamesMarshaling)
-                {
-                    if (msg.rkt != IntPtr.Zero)
-                    {
-                        topic = Util.Marshal.PtrToStringUTF8(Librdkafka.topic_name(msg.rkt));
-                    }
-                }
+                string topic = GetTopic(msg);
 
                 if (msg.err == ErrorCode.Local_PartitionEOF)
                 {
@@ -322,39 +312,8 @@ namespace Confluent.Kafka
                     return null;
                 }
 
-                long timestampUnix = 0;
-                IntPtr timestampType = (IntPtr)TimestampType.NotAvailable;
-                if (enableTimestampMarshaling)
-                {
-                    timestampUnix = Librdkafka.message_timestamp(msgPtr, out timestampType);
-                }
-                var timestamp = new Timestamp(timestampUnix, (TimestampType)timestampType);
-
-                Headers headers = null;
-                if (enableHeaderMarshaling)
-                {
-                    headers = new Headers();
-                    Librdkafka.message_headers(msgPtr, out IntPtr hdrsPtr);
-                    if (hdrsPtr != IntPtr.Zero)
-                    {
-                        for (var i = 0; ; ++i)
-                        {
-                            var err = Librdkafka.header_get_all(hdrsPtr, (IntPtr)i, out IntPtr namep, out IntPtr valuep, out IntPtr sizep);
-                            if (err != ErrorCode.NoError)
-                            {
-                                break;
-                            }
-                            var headerName = Util.Marshal.PtrToStringUTF8(namep);
-                            byte[] headerValue = null;
-                            if (valuep != IntPtr.Zero)
-                            {
-                                headerValue = new byte[(int)sizep];
-                                Marshal.Copy(valuep, headerValue, 0, (int)sizep);
-                            }
-                            headers.Add(new Header(headerName, headerValue));
-                        }
-                    }
-                }
+                var timestamp = GetTimeStamp(msgPtr);
+                var headers = GetHeaders(msgPtr);
 
                 if (msg.err != ErrorCode.NoError)
                 {
@@ -374,6 +333,9 @@ namespace Confluent.Kafka
                     );
                 }
 
+                var ancillary = new MessageAncillary { Timestamp = timestamp, Headers = headers };
+                var partition = new TopicPartition(topic, msg.partition);
+
                 TKey key;
                 try
                 {
@@ -381,7 +343,7 @@ namespace Confluent.Kafka
                     {
                         key = keyDeserializer.Deserialize(
                             msg.key == IntPtr.Zero ? ReadOnlySpan<byte>.Empty : new ReadOnlySpan<byte>(msg.key.ToPointer(), (int)msg.key_len),
-                            msg.key == IntPtr.Zero, true, new MessageAncillary { Timestamp = timestamp, Headers = headers }, new TopicPartition(topic, msg.partition)
+                            msg.key == IntPtr.Zero, true, ancillary, partition
                         );
                     }
                 }
@@ -390,7 +352,9 @@ namespace Confluent.Kafka
                     throw new ConsumeException(
                         new ConsumeResult<byte[], byte[]>
                         {
-                            TopicPartitionOffset = new TopicPartitionOffset(topic, msg.partition, msg.offset),
+                            Topic = topic,
+                            Partition = msg.partition,
+                            Offset = msg.offset,
                             Message = new Message<byte[], byte[]>
                             {
                                 Timestamp = timestamp,
@@ -407,9 +371,13 @@ namespace Confluent.Kafka
                 try
                 {
                     {
-                        val = valueDeserializer.Deserialize(
-                            msg.val == IntPtr.Zero ? ReadOnlySpan<byte>.Empty : new ReadOnlySpan<byte>(msg.val.ToPointer(), (int)msg.len),
-                            msg.val == IntPtr.Zero, false, new MessageAncillary { Timestamp = timestamp, Headers = headers }, new TopicPartition(topic, msg.partition));
+                        unsafe
+                        {
+                            val = valueDeserializer.Deserialize(
+                                msg.val == IntPtr.Zero ? ReadOnlySpan<byte>.Empty : new ReadOnlySpan<byte>(msg.val.ToPointer(), (int)msg.len),
+                                msg.val == IntPtr.Zero, false, ancillary, partition
+                            );
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -417,7 +385,9 @@ namespace Confluent.Kafka
                     throw new ConsumeException(
                         new ConsumeResult<byte[], byte[]>
                         {
-                            TopicPartitionOffset = new TopicPartitionOffset(topic, msg.partition, msg.offset),
+                            Topic = topic,
+                            Partition = msg.partition,
+                            Offset = msg.offset,
                             Message = new Message<byte[], byte[]>
                             {
                                 Timestamp = timestamp,
@@ -476,23 +446,13 @@ namespace Confluent.Kafka
             IAsyncDeserializer<TValue> valueDeserializer)
         {
             var msgPtr = kafkaHandle.ConsumerPoll((IntPtr)millisecondsTimeout);
-            if (msgPtr == IntPtr.Zero)
-            {
-                return null;
-            }
+            if (msgPtr == IntPtr.Zero) { return null; }
 
             try
             {
                 var msg = Util.Marshal.PtrToStructureUnsafe<rd_kafka_message>(msgPtr);
 
-                string topic = null;
-                if (enableTopicNamesMarshaling)
-                {
-                    if (msg.rkt != IntPtr.Zero)
-                    {
-                        topic = Util.Marshal.PtrToStringUTF8(Librdkafka.topic_name(msg.rkt));
-                    }
-                }
+                string topic = GetTopic(msg);
 
                 if (msg.err == ErrorCode.Local_PartitionEOF)
                 {
@@ -500,57 +460,8 @@ namespace Confluent.Kafka
                     return null;
                 }
 
-                long timestampUnix = 0;
-                IntPtr timestampType = (IntPtr)TimestampType.NotAvailable;
-                if (enableTimestampMarshaling)
-                {
-                    timestampUnix = Librdkafka.message_timestamp(msgPtr, out timestampType);
-                }
-                var timestamp = new Timestamp(timestampUnix, (TimestampType)timestampType);
-
-                Headers headers = null;
-                if (enableHeaderMarshaling)
-                {
-                    headers = new Headers();
-                    Librdkafka.message_headers(msgPtr, out IntPtr hdrsPtr);
-                    if (hdrsPtr != IntPtr.Zero)
-                    {
-                        for (var i = 0; ; ++i)
-                        {
-                            var err = Librdkafka.header_get_all(hdrsPtr, (IntPtr)i, out IntPtr namep, out IntPtr valuep, out IntPtr sizep);
-                            if (err != ErrorCode.NoError)
-                            {
-                                break;
-                            }
-                            var headerName = Util.Marshal.PtrToStringUTF8(namep);
-                            byte[] headerValue = null;
-                            if (valuep != IntPtr.Zero)
-                            {
-                                headerValue = new byte[(int)sizep];
-                                Marshal.Copy(valuep, headerValue, 0, (int)sizep);
-                            }
-                            headers.Add(new Header(headerName, headerValue));
-                        }
-                    }
-                }
-
-                if (msg.err != ErrorCode.NoError)
-                {
-                    throw new ConsumeException(
-                        new ConsumeResult<byte[], byte[]>
-                        {
-                            TopicPartitionOffset = new TopicPartitionOffset(topic, msg.partition, msg.offset),
-                            Message = new Message<byte[], byte[]>
-                            {
-                                Timestamp = timestamp,
-                                Headers = headers,
-                                Key = KeyAsByteArray(msg),
-                                Value = ValueAsByteArray(msg)
-                            }
-                        },
-                        new Error(msg.err)
-                    );
-                }
+                var timestamp = GetTimeStamp(msgPtr);
+                var headers = GetHeaders(msgPtr);
 
                 var ancillary = new MessageAncillary { Timestamp = timestamp, Headers = headers };
                 var partition = new TopicPartition(topic, msg.partition);
@@ -568,7 +479,9 @@ namespace Confluent.Kafka
                     throw new ConsumeException(
                         new ConsumeResult<byte[], byte[]>
                         {
-                            TopicPartitionOffset = new TopicPartitionOffset(topic, msg.partition, msg.offset),
+                            Topic = topic,
+                            Partition = msg.partition,
+                            Offset = msg.offset,
                             Message = new Message<byte[], byte[]>
                             {
                                 Timestamp = timestamp,
@@ -594,7 +507,9 @@ namespace Confluent.Kafka
                     throw new ConsumeException(
                         new ConsumeResult<byte[], byte[]>
                         {
-                            TopicPartitionOffset = new TopicPartitionOffset(topic, msg.partition, msg.offset),
+                            Topic = topic,
+                            Partition = msg.partition,
+                            Offset = msg.offset,
                             Message = new Message<byte[], byte[]>
                             {
                                 Timestamp = timestamp,
@@ -623,6 +538,54 @@ namespace Confluent.Kafka
             {
                 Librdkafka.message_destroy(msgPtr);
             }
+        }
+
+        private string GetTopic(rd_kafka_message msg)
+        {
+            if (enableTopicNamesMarshaling && msg.rkt != IntPtr.Zero)
+            {
+                return Util.Marshal.PtrToStringUTF8(Librdkafka.topic_name(msg.rkt));
+            }
+            return null;
+        }
+
+        private Timestamp GetTimeStamp(IntPtr msgPtr)
+        {
+            long timestampUnix = 0;
+            IntPtr timestampType = (IntPtr)TimestampType.NotAvailable;
+            if (enableTimestampMarshaling)
+            {
+                timestampUnix = Librdkafka.message_timestamp(msgPtr, out timestampType);
+            }
+            return new Timestamp(timestampUnix, (TimestampType)timestampType);
+        }
+
+        private Headers GetHeaders(IntPtr msgPtr)
+        {
+            if (!enableHeaderMarshaling) { return null; }
+
+            var headers = new Headers();
+            Librdkafka.message_headers(msgPtr, out IntPtr hdrsPtr);
+            if (hdrsPtr != IntPtr.Zero)
+            {
+                for (var i = 0; ; ++i)
+                {
+                    var err = Librdkafka.header_get_all(hdrsPtr, (IntPtr)i, out IntPtr namep, out IntPtr valuep, out IntPtr sizep);
+                    if (err != ErrorCode.NoError)
+                    {
+                        break;
+                    }
+                    var headerName = Util.Marshal.PtrToStringUTF8(namep);
+                    byte[] headerValue = null;
+                    if (valuep != IntPtr.Zero)
+                    {
+                        headerValue = new byte[(int)sizep];
+                        Marshal.Copy(valuep, headerValue, 0, (int)sizep);
+                    }
+                    headers.Add(new Header(headerName, headerValue));
+                }
+            }
+            return headers;
         }
 
         /// <summary>
