@@ -18,13 +18,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
-using Confluent.Kafka.Impl;
-using Confluent.Kafka.Internal;
-
 
 namespace Confluent.Kafka
 {
@@ -34,22 +28,8 @@ namespace Confluent.Kafka
     /// </summary>
     public class Consumer<TKey, TValue> : ConsumerBase, IConsumer<TKey, TValue>
     {
-        private Deserializer<TKey> keyDeserializer;
-        private Deserializer<TValue> valueDeserializer;
-        private IAsyncDeserializer<TKey> taskKeyDeserializer;
-        private IAsyncDeserializer<TValue> taskValueDeserializer;
-
-        private Dictionary<Type, object> defaultDeserializers = new Dictionary<Type, object>
-        {
-            { typeof(Null), Deserializers.Null },
-            { typeof(Ignore), Deserializers.Ignore },
-            { typeof(int), Deserializers.Int32 },
-            { typeof(long), Deserializers.Long },
-            { typeof(string), Deserializers.UTF8 },
-            { typeof(float), Deserializers.Float },
-            { typeof(double), Deserializers.Double },
-            { typeof(byte[]), Deserializers.ByteArray }
-        };
+        private IDeserializer<TKey> keyDeserializer;
+        private IDeserializer<TValue> valueDeserializer;
 
         /// <summary>
         ///     Creates a new <see cref="Confluent.Kafka.Consumer{TKey,TValue}" /> instance.
@@ -70,141 +50,35 @@ namespace Confluent.Kafka
         /// </param>
         public Consumer(
             IEnumerable<KeyValuePair<string, string>> config,
-            Deserializer<TKey> keyDeserializer = null,
-            Deserializer<TValue> valueDeserializer = null
+            IDeserializer<TKey> keyDeserializer = null,
+            IDeserializer<TValue> valueDeserializer = null
         ) : base(config)
         {
-            this.keyDeserializer = keyDeserializer;
-            this.valueDeserializer = valueDeserializer;
-
-            if (keyDeserializer == null)
-            {
-                if (!defaultDeserializers.TryGetValue(typeof(TKey), out object deserializer))
-                {
-                    throw new ArgumentNullException(
-                        $"Key deserializer not specified and there is no default deserializer defined for type {typeof(TKey).Name}.");
-                }
-                this.keyDeserializer = (Deserializer<TKey>)deserializer;
-            }
-
-            if (valueDeserializer == null)
-            {
-                if (!defaultDeserializers.TryGetValue(typeof(TValue), out object deserializer))
-                {
-                    throw new ArgumentNullException(
-                        $"Value deserializer not specified and there is no default deserializer defined for type {typeof(TValue).Name}.");
-                }
-                this.valueDeserializer = (Deserializer<TValue>)deserializer;
-            }
+            this.keyDeserializer = keyDeserializer ?? Deserializers.GetBuiltin<TKey>();
+            this.valueDeserializer = valueDeserializer ?? Deserializers.GetBuiltin<TValue>();
         }
-
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.Consumer" />
+        ///     Poll for new messages / events. Blocks until a consume result
+        ///     is available or the operation has been cancelled.
         /// </summary>
-        public Consumer(
-            IEnumerable<KeyValuePair<string, string>> config,
-            Deserializer<TKey> keyDeserializer,
-            IAsyncDeserializer<TValue> taskValueDeserializer
-        ) : base(config)
-        {
-            this.keyDeserializer = keyDeserializer;
-            this.taskValueDeserializer = taskValueDeserializer;
-
-            if (keyDeserializer == null)
-            {
-                throw new ArgumentNullException("Key deserializer must be specified.");
-            }
-
-            if (taskValueDeserializer == null)
-            {
-                throw new ArgumentNullException("Value deserializer must be specified.");
-            }
-        }
-
-
-        /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.Consumer" />
-        /// </summary>
-        public Consumer(
-            IEnumerable<KeyValuePair<string, string>> config,
-            IAsyncDeserializer<TKey> taskKeyDeserializer,
-            Deserializer<TValue> valueDeserializer
-        ) : base(config)
-        {
-            this.taskKeyDeserializer = taskKeyDeserializer;
-            this.valueDeserializer = valueDeserializer;
-
-            if (this.taskKeyDeserializer == null)
-            {
-                throw new ArgumentNullException("Key deserializer must be specified.");
-            }
-
-            if (this.valueDeserializer == null)
-            {
-                throw new ArgumentNullException("Value deserializer must be specified.");
-            }
-        }
-
-
-        /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.Consumer" />
-        /// </summary>
-        public Consumer(
-            IEnumerable<KeyValuePair<string, string>> config,
-            IAsyncDeserializer<TKey> taskKeyDeserializer,
-            IAsyncDeserializer<TValue> taskValueDeserializer
-        ) : base(config)
-        {
-            this.taskKeyDeserializer = taskKeyDeserializer;
-            this.taskValueDeserializer = taskValueDeserializer;
-
-            if (this.taskKeyDeserializer == null)
-            {
-                throw new ArgumentNullException("Key deserializer must be specified.");
-            }
-
-            if (this.taskValueDeserializer == null)
-            {
-                throw new ArgumentNullException("Value deserializer must be specified.");
-            }
-        }
-
-
-        private ConsumeResult<TKey, TValue> Consume(int millisecondsTimeout)
+        /// <param name="millisecondsTimeout">
+        ///     The maximum period of time the call may block.
+        /// </param>
+        /// <returns>
+        ///     The consume result.
+        /// </returns>
+        /// <remarks>
+        ///     OnPartitionsAssigned/Revoked, OnOffsetsCommitted and
+        ///     OnPartitionEOF events may be invoked as a side-effect of
+        ///     calling this method (on the same thread).
+        /// </remarks>
+        public ConsumeResult<TKey, TValue> Consume(int millisecondsTimeout)
         {
             // TODO: change the Consume method, or add to ConsumerBase to expose raw data, and push
             // burden of msgPtr dispose on the caller.
-            var rawResult = base.Consume(100, Deserializers.ByteArray, Deserializers.ByteArray);
-            if (rawResult == null) { return null; }
-            
-            TKey key = keyDeserializer != null
-                ? keyDeserializer(rawResult.Key, rawResult.Key == null, true, rawResult.Message, rawResult.TopicPartition)
-                : taskKeyDeserializer.DeserializeAsync(new ReadOnlyMemory<byte>(rawResult.Key), rawResult.Key == null, true, rawResult.Message, rawResult.TopicPartition)
-                    .ConfigureAwait(continueOnCapturedContext: false)
-                    .GetAwaiter()
-                    .GetResult();
-
-            TValue val = valueDeserializer != null
-                ? valueDeserializer(rawResult.Value, rawResult.Value == null, false, rawResult.Message, rawResult.TopicPartition)
-                : taskValueDeserializer.DeserializeAsync(new ReadOnlyMemory<byte>(rawResult.Value), rawResult == null, false, rawResult.Message, rawResult.TopicPartition)
-                    .ConfigureAwait(continueOnCapturedContext: false)
-                    .GetAwaiter()
-                    .GetResult();
-
-            return new ConsumeResult<TKey, TValue>
-            {
-                TopicPartitionOffset = rawResult.TopicPartitionOffset,
-                Message = new Message<TKey, TValue>
-                {
-                    Key = key,
-                    Value = val,
-                    Headers = rawResult.Headers,
-                    Timestamp = rawResult.Timestamp
-                }
-            };
+            return Consume(millisecondsTimeout, keyDeserializer, valueDeserializer);
         }
-
 
         /// <summary>
         ///     Poll for new messages / events. Blocks until a consume result
@@ -223,18 +97,18 @@ namespace Confluent.Kafka
         /// </remarks>
         public ConsumeResult<TKey, TValue> Consume(CancellationToken cancellationToken = default(CancellationToken))
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                ConsumeResult<TKey, TValue> result = (keyDeserializer != null && valueDeserializer != null)
-                    ? Consume<TKey, TValue>(100, keyDeserializer, valueDeserializer) // fast path for simple case.
-                    : Consume(100);
-        
-                if (result == null) { continue; }
-                return result;
-            }
-        }
+                var result = Consume(100, keyDeserializer, valueDeserializer);
 
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            return null;
+        }
 
         /// <summary>
         ///     Poll for new messages / events. Blocks until a consume result
@@ -251,12 +125,8 @@ namespace Confluent.Kafka
         ///     OnPartitionEOF events may be invoked as a side-effect of 
         ///     calling this method (on the same thread).
         /// </remarks>
-        public ConsumeResult<TKey, TValue> Consume(TimeSpan timeout)
-            => (keyDeserializer != null && valueDeserializer != null)
-                ? Consume<TKey, TValue>(timeout.TotalMillisecondsAsInt(), keyDeserializer, valueDeserializer) // fast path for simple case
-                : Consume(timeout.TotalMillisecondsAsInt());
+        public ConsumeResult<TKey, TValue> Consume(TimeSpan timeout) => Consume(timeout.TotalMillisecondsAsInt());
     }
-
 
     /// <summary>
     ///     Implements a high-level Apache Kafka consumer.
@@ -274,7 +144,33 @@ namespace Confluent.Kafka
         ///     At a minimum, 'bootstrap.servers' and 'group.id' must be
         ///     specified.
         /// </param>
-        public Consumer(IEnumerable<KeyValuePair<string, string>> config) : base(config) {}
+        public Consumer(IEnumerable<KeyValuePair<string, string>> config) : base(config) { }
+
+        /// <summary>
+        ///     Poll for new messages / events. Blocks until a consume result
+        ///     is available or the timeout period has elapsed.
+        /// </summary>
+        /// <param name="millisecondsTimeout">
+        ///     The maximum period of time the call may block.
+        /// </param>
+        /// <returns>
+        ///     The consume result.
+        /// </returns>
+        /// <remarks>
+        ///     OnPartitionsAssigned/Revoked, OnOffsetsCommitted and 
+        ///     OnPartitionEOF events may be invoked as a side-effect of 
+        ///     calling this method (on the same thread).
+        /// </remarks>
+        public ConsumeResult Consume(int millisecondsTimeout)
+        {
+            var result = Consume(millisecondsTimeout, Deserializers.ByteArray, Deserializers.ByteArray);
+            if (result == null) { return null; }
+            return new ConsumeResult
+            {
+                TopicPartitionOffset = result.TopicPartitionOffset,
+                Message = new Message(result.Message)
+            };
+        }
 
         /// <summary>
         ///     Poll for new messages / events. Blocks until a consume result
@@ -293,17 +189,16 @@ namespace Confluent.Kafka
         /// </remarks>
         public ConsumeResult Consume(CancellationToken cancellationToken = default(CancellationToken))
         {
-            while (true)
+            while (!cancellationToken.IsCancellationRequested)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var result = Consume(100, Deserializers.ByteArray, Deserializers.ByteArray);
-                if (result == null) { continue; }
-                return new ConsumeResult
+                var result = Consume(100);
+                if (result != null)
                 {
-                    TopicPartitionOffset = result.TopicPartitionOffset,
-                    Message = new Message(result.Message)
-                };
+                    return result;
+                }
             }
+
+            return null;
         }
 
         /// <summary>
@@ -321,15 +216,6 @@ namespace Confluent.Kafka
         ///     OnPartitionEOF events may be invoked as a side-effect of 
         ///     calling this method (on the same thread).
         /// </remarks>
-        public ConsumeResult Consume(TimeSpan timeout)
-        {
-            var result = Consume(timeout.TotalMillisecondsAsInt(), Deserializers.ByteArray, Deserializers.ByteArray);
-            if (result == null) { return null; }
-            return new ConsumeResult
-            {
-                TopicPartitionOffset = result.TopicPartitionOffset,
-                Message = new Message(result.Message)
-            };
-        }
+        public ConsumeResult Consume(TimeSpan timeout) => Consume(timeout.TotalMillisecondsAsInt());
     }
 }
