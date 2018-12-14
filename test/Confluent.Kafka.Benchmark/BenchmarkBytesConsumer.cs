@@ -21,17 +21,12 @@ using System.Threading;
 
 namespace Confluent.Kafka.Benchmark
 {
-    public static class BenchmarkConsumer
+    public static class BenchmarkBytesConsumer
     {
         public static void BenchmarkConsumerImpl(string bootstrapServers, string topic, long firstMessageOffset, int nMessages, int nTests, int nHeaders)
         {
-            var consumerConfig = new ConsumerConfig
-            {
-                GroupId = "benchmark-consumer-group",
-                BootstrapServers = bootstrapServers,
-                SessionTimeoutMs = 6000,
-                ConsumeResultFields = nHeaders == 0 ? "none" : "headers"
-            };
+            var consumerConfig = Configuration.GetConsumerConfig(bootstrapServers);
+            consumerConfig.ConsumeResultFields = nHeaders == 0 ? "none" : "headers";
 
             using (var consumer = new Consumer<Ignore, Ignore>(consumerConfig))
             {

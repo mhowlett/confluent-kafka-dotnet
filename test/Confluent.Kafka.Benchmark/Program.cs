@@ -15,35 +15,82 @@
 // Refer to LICENSE for more information.
 
 using System;
+using Mono.Options;
 
 
 namespace Confluent.Kafka.Benchmark
 {
     public class Program
     {
+        private static void WriteHelp(OptionSet options)
+        {
+            Console.WriteLine("Options: ");
+            options.WriteOptionDescriptions(Console.Out);
+        }
+
         public static void Main(string[] args)
         {
-            if (args.Length != 2 && args.Length != 3)
+            string serializationFormat = null;
+            string bootstrapServers = null;
+            string schemaRegistryUrl = null;
+            string topic = null;
+            int headerCount = 0;
+            int messageCount = 1_000_000;
+
+            var p = new OptionSet
             {
-                Console.WriteLine($"Usage: .. <broker,broker..> <topic> [header-count]");
-                return;
+                { "f=", "Serialization format <bytes|avro|protobuf|string>.", v => serializationFormat = v },
+                { "b=", "Comma separated list of brokers.", v => bootstrapServers = v },
+                { "s=", "Schema Registry url.", v => schemaRegistryUrl = v },
+                { "t=", "Kafka topic", v => topic = v },
+                { "h=", "Header count (default 0)", v => headerCount = int.Parse(v) },
+                { "n=", "Number of messages to produce/consume (default 1M)", v => messageCount = int.Parse(v) }
+            };
+
+            if (args.Length == 0)
+            {
+                WriteHelp(p);
+                Environment.Exit(0);
             }
 
-            var bootstrapServers = args[0];
-            var topic = args[1];
-            var headerCount = 0;
-            if (args.Length > 2)
+            try
             {
-                headerCount = int.Parse(args[2]);
+                p.Parse(args);
+            }
+            catch (Exception)
+            {
+                WriteHelp(p);
+                Environment.Exit(1);
             }
 
-            const int NUMBER_OF_MESSAGES = 5000000;
-            const int NUMBER_OF_TESTS = 1;
+            if (bootstrapServers == null) { Console.WriteLine("broker must be specified."); Environment.Exit(1); }
+            if (topic == null) { Console.WriteLine("topic must be specified"); Environment.Exit(1); }
+            if (serializationFormat == null) { Console.WriteLine("serialization format must be specified"); Environment.Exit(1); }
 
-            BenchmarkProducer.TaskProduce(bootstrapServers, topic, NUMBER_OF_MESSAGES, headerCount, NUMBER_OF_TESTS);
-            var firstMessageOffset = BenchmarkProducer.DeliveryHandlerProduce(bootstrapServers, topic, NUMBER_OF_MESSAGES, headerCount, NUMBER_OF_TESTS);
-
-            BenchmarkConsumer.Consume(bootstrapServers, topic, firstMessageOffset, NUMBER_OF_MESSAGES, headerCount, NUMBER_OF_TESTS);
+            switch (serializationFormat)
+            {
+                case "bytes":
+                    const int NUMBER_OF_TESTS = 1;
+                    BenchmarkBytesProducer.TaskProduce(bootstrapServers, topic, messageCount, headerCount, NUMBER_OF_TESTS);
+                    var firstMessageOffset = BenchmarkBytesProducer.DeliveryHandlerProduce(bootstrapServers, topic, messageCount, headerCount, NUMBER_OF_TESTS);
+                    BenchmarkBytesConsumer.Consume(bootstrapServers, topic, firstMessageOffset, messageCount, headerCount, NUMBER_OF_TESTS);
+                    break;
+                case "avro":
+                    BenchmarkAvro.ProduceConsume(bootstrapServers, schemaRegistryUrl, topic, messageCount);
+                    break;
+                case "protobuf":
+                    BenchmarkProtobuf.ProduceConsume(bootstrapServers, topic, messageCount);
+                    break;
+                case "string":
+                    BenchmarkString.ProduceConsume(bootstrapServers, topic, messageCount);
+                    break;
+                case "json":
+                    BenchmarkJson.ProduceConsume(bootstrapServers, topic, messageCount);
+                    break;
+                default:
+                    Console.WriteLine($"unknown serialization type {serializationFormat}");
+                    break;
+            }
         }
     }
 }

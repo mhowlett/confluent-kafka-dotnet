@@ -23,7 +23,7 @@ using System.Collections.Generic;
 
 namespace Confluent.Kafka.Benchmark
 {
-    public static class BenchmarkProducer
+    public static class BenchmarkBytesProducer
     {
         private static long BenchmarkProducerImpl(
             string bootstrapServers, 
@@ -33,17 +33,6 @@ namespace Confluent.Kafka.Benchmark
             int nHeaders,
             bool useDeliveryHandler)
         {
-            // mirrors the librdkafka performance test example.
-            var config = new ProducerConfig
-            {
-                BootstrapServers = bootstrapServers,
-                QueueBufferingMaxMessages = 2000000,
-                MessageSendMaxRetries = 3,
-                RetryBackoffMs = 500 ,
-                LingerMs = 100,
-                DeliveryReportFields = "none"
-            };
-
             DeliveryResult firstDeliveryReport = null;
 
             Headers headers = null;
@@ -56,7 +45,7 @@ namespace Confluent.Kafka.Benchmark
                 }
             }
 
-            using (var producer = new Producer(config))
+            using (var producer = new Producer(Configuration.GetProducerConfig(bootstrapServers)))
             {
                 for (var j=0; j<nTests; j += 1)
                 {
