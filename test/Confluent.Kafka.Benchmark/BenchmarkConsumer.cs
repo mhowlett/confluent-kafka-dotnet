@@ -15,6 +15,7 @@
 // Refer to LICENSE for more information.
 
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -23,49 +24,62 @@ namespace Confluent.Kafka.Benchmark
 {
     public static class BenchmarkConsumer
     {
-        public static void BenchmarkConsumerImpl(string bootstrapServers, string topic, long firstMessageOffset, int nMessages, int nTests, int nHeaders)
+        public static void BenchmarkConsumerImpl(string bootstrapServers, string topic, long firstMessageOffset, int nMessages, int nHeaders)
         {
+            var nReportInterval = nMessages / 10;
+
             var consumerConfig = new ConsumerConfig
             {
                 GroupId = "benchmark-consumer-group",
                 BootstrapServers = bootstrapServers,
                 SessionTimeoutMs = 6000,
-                ConsumeResultFields = nHeaders == 0 ? "none" : "headers"
+                ConsumeResultFields = nHeaders == 0 ? "none" : "headers",
+                QueuedMinMessages = 10000000
             };
 
             using (var consumer = new Consumer<Ignore, Ignore>(consumerConfig))
             {
-                for (var j=0; j<nTests; j += 1)
+                Console.WriteLine($"{consumer.Name} consuming from {topic}:");
+
+                consumer.Assign(new List<TopicPartitionOffset>() { new TopicPartitionOffset(topic, 0, firstMessageOffset) });
+
+                var stopwatch = new Stopwatch();
+
+                // consume 1 message before starting the timer to avoid including potential one-off delays.
+                var record = consumer.Consume(TimeSpan.FromSeconds(10));
+                if (record == null) { throw new Exception("First record was not consumed in a timely manner."); }
+
+                stopwatch.Start();
+
+                var cnt = 0;
+                long lastElapsedMs = 0;
+                while (cnt < nMessages-1)
                 {
-                    Console.WriteLine($"{consumer.Name} consuming from {topic}");
-
-                    consumer.Assign(new List<TopicPartitionOffset>() { new TopicPartitionOffset(topic, 0, firstMessageOffset) });
-
-                    // consume 1 message before starting the timer to avoid including potential one-off delays.
-                    var record = consumer.Consume(TimeSpan.FromSeconds(1));
-
-                    long startTime = DateTime.Now.Ticks;
-
-                    var cnt = 0;
-
-                    while (cnt < nMessages-1)
+                    record = consumer.Consume(TimeSpan.FromSeconds(1));
+                    if (record == null)
                     {
-                        record = consumer.Consume(TimeSpan.FromSeconds(1));
-                        if (record != null)
-                        {
-                            cnt += 1;
-                        }
+                        throw new Exception("Local consumer queue is starved, this is unexpected.");
                     }
+                    cnt += 1;
 
-                    var duration = DateTime.Now.Ticks - startTime;
-
-                    Console.WriteLine($"Consumed {nMessages-1} messages in {duration/10000.0:F0}ms");
-                    Console.WriteLine($"{(nMessages-1) / (duration/10000.0):F0}k msg/s");
+                    if (cnt % nReportInterval == 0)
+                    {
+                        var elapsedMs = stopwatch.ElapsedMilliseconds;
+                        Console.WriteLine($"  Consumed {nReportInterval} messages in {elapsedMs - lastElapsedMs:F0}ms");
+                        Console.WriteLine($"  {nReportInterval / (elapsedMs - lastElapsedMs):F0}k msg/s");
+                        lastElapsedMs = elapsedMs;
+                    }
                 }
+
+                var durationMs = stopwatch.ElapsedMilliseconds;
+
+                Console.WriteLine($"  Total:");
+                Console.WriteLine($"    Consumed {nMessages-1} messages in {durationMs:F0}ms");
+                Console.WriteLine($"    {(nMessages-1) / durationMs:F0}k msg/s");
             }
         }
 
-        public static void Consume(string bootstrapServers, string topic, long firstMessageOffset, int nMessages, int nHeaders, int nTests)
-            => BenchmarkConsumerImpl(bootstrapServers, topic, firstMessageOffset, nMessages, nTests, nHeaders);
+        public static void Consume(string bootstrapServers, string topic, long firstMessageOffset, int nMessages, int nHeaders)
+            => BenchmarkConsumerImpl(bootstrapServers, topic, firstMessageOffset, nMessages, nHeaders);
     }
 }

@@ -15,6 +15,7 @@
 // Refer to LICENSE for more information.
 
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Linq;
@@ -29,18 +30,23 @@ namespace Confluent.Kafka.Benchmark
             string bootstrapServers, 
             string topic, 
             int nMessages, 
-            int nTests, 
             int nHeaders,
             bool useDeliveryHandler)
         {
-            // mirrors the librdkafka performance test example.
+            var nReportInterval = nMessages / 10;
+
+            // Most of the performance benefit of batching is achieved with a
+            // linger.ms setting of 5ms, and is chosen over a higher value
+            // since it reduces systematic variability of results related to
+            // alignment of the last message produced w.r.t. the creation of
+            // the last batch.
             var config = new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
                 QueueBufferingMaxMessages = 2000000,
                 MessageSendMaxRetries = 3,
                 RetryBackoffMs = 500 ,
-                LingerMs = 100,
+                LingerMs = 5,
                 DeliveryReportFields = "none"
             };
 
@@ -58,71 +64,93 @@ namespace Confluent.Kafka.Benchmark
 
             using (var producer = new Producer(config))
             {
-                for (var j=0; j<nTests; j += 1)
+                Console.WriteLine($"{producer.Name} producing on {topic} " + (useDeliveryHandler ? "[Action<Message>]:" : "[Task]:"));
+
+                byte cnt = 0;
+                var val = new byte[100].Select(a => ++cnt).ToArray();
+
+                var stopwatch = new Stopwatch();
+
+                // avoid including connection setup, topic creation time, etc.. in result.
+                firstDeliveryReport = producer.ProduceAsync(topic, new Message { Value = val, Headers = headers }).Result;
+
+                stopwatch.Start();
+                
+                if (useDeliveryHandler)
                 {
-                    Console.WriteLine($"{producer.Name} producing on {topic} " + (useDeliveryHandler ? "[Action<Message>]" : "[Task]"));
-
-                    byte cnt = 0;
-                    var val = new byte[100].Select(a => ++cnt).ToArray();
-
-                    // this avoids including connection setup, topic creation time, etc.. in result.
-                    firstDeliveryReport = producer.ProduceAsync(topic, new Message { Value = val, Headers = headers }).Result;
-
-                    var startTime = DateTime.Now.Ticks;
-
-                    if (useDeliveryHandler)
+                    var autoEvent = new AutoResetEvent(false);
+                    var msgCount = 0;
+                    long lastElapsedMs = 0;
+                    Action<DeliveryReport> deliveryHandler = (DeliveryReport deliveryReport) => 
                     {
-                        var autoEvent = new AutoResetEvent(false);
-                        var msgCount = nMessages;
-                        Action<DeliveryReport> deliveryHandler = (DeliveryReport deliveryReport) => 
+                        if (deliveryReport.Error.Code != ErrorCode.NoError)
                         {
-                            if (--msgCount == 0)
-                            {
-                                autoEvent.Set();
-                            }
-                        };
-
-                        for (int i = 0; i < nMessages; i += 1)
-                        {
-                            producer.BeginProduce(topic, new Message { Value = val, Headers = headers }, deliveryHandler);
+                            throw new Exception($"Message delivery failed: {deliveryReport.Error}.");
                         }
 
-                        autoEvent.WaitOne();
-                    }
-                    else
-                    {
-                        var tasks = new Task[nMessages];
-                        for (int i = 0; i < nMessages; i += 1)
+                        msgCount += 1;
+
+                        if (msgCount % nReportInterval == 0)
                         {
-                            tasks[i] = producer.ProduceAsync(topic, new Message { Value = val, Headers = headers });
+                            var elapsedMs = stopwatch.ElapsedMilliseconds;
+                            Console.WriteLine($"  Produced {nReportInterval} messages in {elapsedMs - lastElapsedMs:F0}ms");
+                            Console.WriteLine($"  {nReportInterval / (elapsedMs - lastElapsedMs):F0}k msg/s");
+                            lastElapsedMs = elapsedMs;
                         }
-                        Task.WaitAll(tasks);
+
+                        if (msgCount == nMessages) { autoEvent.Set(); }
+                    };
+
+                    for (int i = 0; i < nMessages; i += 1)
+                    {
+                        producer.BeginProduce(topic, new Message { Value = val, Headers = headers }, deliveryHandler);
                     }
 
-                    var duration = DateTime.Now.Ticks - startTime;
-
-                    Console.WriteLine($"Produced {nMessages} messages in {duration/10000.0:F0}ms");
-                    Console.WriteLine($"{nMessages / (duration/10000.0):F0}k msg/s");
+                    autoEvent.WaitOne();
+                }
+                else
+                {
+                    // The overhead in managing / checking the Tasks returned from ProduceAsync
+                    // is significant. Storing all the tasks then calling Task.WaitAll() 
+                    // reduces throughput by ~30-40% in tests on my local machine compared with 
+                    // simply calling producer.Flush(). However, it's cheating to not wait
+                    // on the Tasks themselves, since otherwise any delivery errors will be ignored.
+                    //
+                    // Note: since there are no messages in flight when the stopwatch is started,
+                    // throughtput will be systematically underestimated compared to the
+                    // steady-state throughput. The extent of this effect can be estimated by
+                    // looking at the delivery handler tests, where samples of the throughput
+                    // as the test progresses are reported. The point at which this effect is
+                    // not significant is around ~> 10M messages.
+                    //
+                    // The alternative - starting the stopwatch timer on the first received delivery
+                    // report whilst other messages that are part of the test are also in flight -
+                    // will systematically over estimate throughput since all messages in the 
+                    // first batch effectively have a round-trip time to the broker of 0ms. In my
+                    // testing, the error in doing this had higher variability and was greater
+                    // than the approach taken here.
+                    var tasks = new Task<DeliveryResult>[nMessages];
+                    for (int i = 0; i < nMessages; i += 1)
+                    {
+                        tasks[i] = producer.ProduceAsync(topic, new Message { Value = val, Headers = headers });
+                    }
+                    Task.WaitAll(tasks);
                 }
 
-                producer.Flush(TimeSpan.FromSeconds(10));
+                var durationMs = stopwatch.ElapsedMilliseconds;
+
+                Console.WriteLine($"  Total:");
+                Console.WriteLine($"    Produced {nMessages} messages in {durationMs:F0}ms");
+                Console.WriteLine($"    {nMessages / durationMs:F0}k msg/s");
             }
 
             return firstDeliveryReport.Offset;
         }
 
-        /// <summary>
-        ///     Producer benchmark masquarading as an integration test.
-        ///     Uses Task based produce method.
-        /// </summary>
-        public static long TaskProduce(string bootstrapServers, string topic, int nMessages, int nHeaders, int nTests)
-            => BenchmarkProducerImpl(bootstrapServers, topic, nMessages, nTests, nHeaders, false);
+        public static long TaskProduce(string bootstrapServers, string topic, int nMessages, int nHeaders)
+            => BenchmarkProducerImpl(bootstrapServers, topic, nMessages, nHeaders, false);
 
-        /// <summary>
-        ///     Producer benchmark (with custom delivery handler) masquarading
-        ///     as an integration test. Uses Task based produce method.
-        /// </summary>
-        public static long DeliveryHandlerProduce(string bootstrapServers, string topic, int nMessages, int nHeaders, int nTests)
-            => BenchmarkProducerImpl(bootstrapServers, topic, nMessages, nTests, nHeaders, true);
+        public static long DeliveryHandlerProduce(string bootstrapServers, string topic, int nMessages, int nHeaders)
+            => BenchmarkProducerImpl(bootstrapServers, topic, nMessages, nHeaders, true);
     }
 }
