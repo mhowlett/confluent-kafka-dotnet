@@ -40,7 +40,7 @@ namespace Confluent.Kafka.Benchmark
                 { "b=", "Comma separated list of brokers (required)", v => bootstrapServers = v },
                 { "t=", "Kafka topic (required)", v => topic = v },
                 { "h=", "Header count (default 0)", v => headerCount = int.Parse(v) },
-                { "n=", "Number of messages to produce/consume (default 1M)", v => messageCount = int.Parse(v) }
+                { "n=", "Number of messages to produce/consume (default 10M)", v => messageCount = int.Parse(v) }
             };
 
             if (args.Length == 0)

@@ -36,16 +36,23 @@ namespace Confluent.Kafka.Benchmark
             var nReportInterval = nMessages / 10;
 
             // Most of the performance benefit of batching is achieved with a
-            // linger.ms setting of 5ms, and is chosen over a higher value
-            // since it reduces systematic variability of results related to
-            // alignment of the last message produced w.r.t. the creation of
-            // the last batch.
+            // linger.ms setting of 5ms and this is preferred in this test over
+            // a larger value (which would be slightly more optimal). There are
+            // two effects at play that will make a larger linger.ms setting
+            // produce worse results here:
+            // 1. At the beginning of the test, for a period of linger.ms, no
+            //    messages will be on the network and kafka will be idle. i.e.
+            //    over the duration of the test, there are idle resources which
+            //    would not be case during steady-state production.
+            // 2. At the end of the test there may (or may not) be a delay before
+            //    the final batch is sent after the final message is produced.
+            //    This will result in a systematic error in the result (i.e.
+            //    an error that will tend to be the same across runs).
             var config = new ProducerConfig
             {
                 BootstrapServers = bootstrapServers,
                 QueueBufferingMaxMessages = 2000000,
-                MessageSendMaxRetries = 3,
-                RetryBackoffMs = 500 ,
+                RetryBackoffMs = 500,
                 LingerMs = 5,
                 DeliveryReportFields = "none"
             };
@@ -103,7 +110,19 @@ namespace Confluent.Kafka.Benchmark
 
                     for (int i = 0; i < nMessages; i += 1)
                     {
-                        producer.BeginProduce(topic, new Message { Value = val, Headers = headers }, deliveryHandler);
+                        while (true)
+                        {
+                            try
+                            {
+                                producer.BeginProduce(topic, new Message { Value = val, Headers = headers }, deliveryHandler);
+                                break;
+                            }
+                            catch (KafkaException e)
+                            {
+                                if (e.Error.Code == ErrorCode.Local_QueueFull) { continue; }
+                                throw;
+                            }
+                        }
                     }
 
                     autoEvent.WaitOne();
@@ -132,7 +151,19 @@ namespace Confluent.Kafka.Benchmark
                     var tasks = new Task<DeliveryResult>[nMessages];
                     for (int i = 0; i < nMessages; i += 1)
                     {
-                        tasks[i] = producer.ProduceAsync(topic, new Message { Value = val, Headers = headers });
+                        while (true)
+                        {
+                            try
+                            {
+                                tasks[i] = producer.ProduceAsync(topic, new Message { Value = val, Headers = headers });
+                                break;
+                            }
+                            catch (KafkaException e)
+                            {
+                                if (e.Error.Code == ErrorCode.Local_QueueFull) { continue; }
+                                throw;
+                            }
+                        }
                     }
                     Task.WaitAll(tasks);
                 }

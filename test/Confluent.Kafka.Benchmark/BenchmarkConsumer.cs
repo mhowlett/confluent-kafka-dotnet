@@ -55,7 +55,7 @@ namespace Confluent.Kafka.Benchmark
                 long lastElapsedMs = 0;
                 while (cnt < nMessages-1)
                 {
-                    record = consumer.Consume(TimeSpan.FromSeconds(1));
+                    record = consumer.Consume(TimeSpan.FromSeconds(10));
                     if (record == null)
                     {
                         throw new Exception("Local consumer queue is starved, this is unexpected.");
