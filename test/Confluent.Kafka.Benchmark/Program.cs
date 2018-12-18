@@ -15,35 +15,56 @@
 // Refer to LICENSE for more information.
 
 using System;
+using Mono.Options;
 
 
 namespace Confluent.Kafka.Benchmark
 {
     public class Program
     {
+        private static void WriteHelp(OptionSet options)
+        {
+            Console.WriteLine("Options: ");
+            options.WriteOptionDescriptions(Console.Out);
+        }
+
         public static void Main(string[] args)
         {
-            if (args.Length != 2 && args.Length != 3)
+            string bootstrapServers = null;
+            string topic = null;
+            int headerCount = 0;
+            int messageCount = 10_000_000;
+
+            var p = new OptionSet
             {
-                Console.WriteLine($"Usage: .. <broker,broker..> <topic> [header-count]");
-                return;
+                { "b=", "Comma separated list of brokers (required)", v => bootstrapServers = v },
+                { "t=", "Kafka topic (required)", v => topic = v },
+                { "h=", "Header count (default 0)", v => headerCount = int.Parse(v) },
+                { "n=", "Number of messages to produce/consume (default 10M)", v => messageCount = int.Parse(v) }
+            };
+
+            if (args.Length == 0)
+            {
+                WriteHelp(p);
+                Environment.Exit(0);
             }
 
-            var bootstrapServers = args[0];
-            var topic = args[1];
-            var headerCount = 0;
-            if (args.Length > 2)
+            try
             {
-                headerCount = int.Parse(args[2]);
+                p.Parse(args);
+            }
+            catch (Exception)
+            {
+                WriteHelp(p);
+                Environment.Exit(1);
             }
 
-            const int NUMBER_OF_MESSAGES = 5000000;
-            const int NUMBER_OF_TESTS = 1;
+            if (bootstrapServers == null) { Console.WriteLine("broker must be specified."); Environment.Exit(1); }
+            if (topic == null) { Console.WriteLine("topic must be specified"); Environment.Exit(1); }
 
-            BenchmarkProducer.TaskProduce(bootstrapServers, topic, NUMBER_OF_MESSAGES, headerCount, NUMBER_OF_TESTS);
-            var firstMessageOffset = BenchmarkProducer.DeliveryHandlerProduce(bootstrapServers, topic, NUMBER_OF_MESSAGES, headerCount, NUMBER_OF_TESTS);
-
-            BenchmarkConsumer.Consume(bootstrapServers, topic, firstMessageOffset, NUMBER_OF_MESSAGES, headerCount, NUMBER_OF_TESTS);
+            BenchmarkProducer.TaskProduce(bootstrapServers, topic, messageCount, headerCount);
+            var firstMessageOffset = BenchmarkProducer.DeliveryHandlerProduce(bootstrapServers, topic, messageCount, headerCount);
+            BenchmarkConsumer.Consume(bootstrapServers, topic, firstMessageOffset, messageCount, headerCount);
         }
     }
 }
