@@ -22,11 +22,9 @@ namespace Confluent.Kafka.UnitTests
         {
             var config = new ProducerConfig
             {
-                QueuingStrategy = QueuingStrategyType.Fifo,
                 Partitioner = PartitionerType.Consistent
             };
 
-            Assert.Equal(QueuingStrategyType.Fifo, config.QueuingStrategy);
             Assert.Equal(PartitionerType.Consistent, config.Partitioner);
         }
     }
