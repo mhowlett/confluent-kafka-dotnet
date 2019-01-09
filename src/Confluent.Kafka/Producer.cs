@@ -25,8 +25,10 @@ namespace Confluent.Kafka
     /// <summary>
     ///     A high level producer with serialization capability.
     /// </summary>
-    public class Producer<TKey, TValue> : ProducerBase, IProducer<TKey, TValue>
+    public class Producer<TKey, TValue> : IProducer<TKey, TValue>
     {
+        private ProducerBase producerBase = new ProducerBase();
+
         private ISerializer<TKey> keySerializer;
         private ISerializer<TValue> valueSerializer;
         private IAsyncSerializer<TKey> asyncKeySerializer;
@@ -42,6 +44,16 @@ namespace Confluent.Kafka
             { typeof(double), Serializers.Double },
             { typeof(byte[]), Serializers.ByteArray }
         };
+
+        /// <summary>
+        ///     <see cref="IClient.Handle" />
+        /// </summary>
+        public Handle Handle => producerBase.Handle;
+
+        /// <summary>
+        ///     <see cref="IClient.Name" />
+        /// </summary>
+        public string Name => producerBase.Name;
 
         private void InitializeSerializers(
             ISerializer<TKey> keySerializer,
@@ -98,7 +110,7 @@ namespace Confluent.Kafka
 
         internal Producer(DependentProducerBuilder<TKey, TValue> builder)
         {
-            base.Initialize(builder.handle);
+            producerBase.Initialize(builder.handle);
             InitializeSerializers(
                 builder.KeySerializer, builder.ValueSerializer,
                 builder.AsyncKeySerializer, builder.AsyncValueSerializer);
@@ -106,7 +118,7 @@ namespace Confluent.Kafka
 
         internal Producer(ProducerBuilder<TKey, TValue> builder)
         {
-            base.Initialize(builder.ConstructBaseConfig(this));
+            producerBase.Initialize(builder.ConstructBaseConfig(this));
             InitializeSerializers(
                 builder.KeySerializer, builder.ValueSerializer,
                 builder.AsyncKeySerializer, builder.AsyncValueSerializer);
@@ -147,15 +159,15 @@ namespace Confluent.Kafka
                     .GetAwaiter()
                     .GetResult();
 
-            if (this.enableDeliveryReports)
+            if (producerBase.enableDeliveryReports)
             {
                 var handler = new TypedTaskDeliveryHandlerShim<TKey, TValue>(topicPartition.Topic,
-                    enableDeliveryReportKey ? message.Key : default(TKey),
-                    enableDeliveryReportValue ? message.Value : default(TValue));
+                    producerBase.enableDeliveryReportKey ? message.Key : default(TKey),
+                    producerBase.enableDeliveryReportValue ? message.Value : default(TValue));
 
                 cancellationToken.Register(() => handler.TrySetException(new TaskCanceledException()));
 
-                base.Produce(
+                producerBase.Produce(
                     topicPartition.Topic,
                     valBytes, 0, valBytes == null ? 0 : valBytes.Length,
                     keyBytes, 0, keyBytes == null ? 0 : keyBytes.Length,
@@ -166,7 +178,7 @@ namespace Confluent.Kafka
             }
             else
             {
-                base.Produce(
+                producerBase.Produce(
                     topicPartition.Topic, 
                     valBytes, 0, valBytes == null ? 0 : valBytes.Length, 
                     keyBytes, 0, keyBytes == null ? 0 : keyBytes.Length, 
@@ -253,7 +265,7 @@ namespace Confluent.Kafka
             Message<TKey, TValue> message,
             Action<DeliveryReport<TKey, TValue>> deliveryHandler = null)
         {
-            if (deliveryHandler != null && !enableDeliveryReports)
+            if (deliveryHandler != null && !producerBase.enableDeliveryReports)
             {
                 throw new ArgumentException("A delivery handler was specified, but delivery reports are disabled.");
             }
@@ -272,7 +284,7 @@ namespace Confluent.Kafka
                     .GetAwaiter()
                     .GetResult();
 
-            base.Produce(
+            producerBase.Produce(
                 topicPartition.Topic,
                 valBytes, 0, valBytes == null ? 0 : valBytes.Length, 
                 keyBytes, 0, keyBytes == null ? 0 : keyBytes.Length, 
@@ -280,11 +292,98 @@ namespace Confluent.Kafka
                 message.Headers, 
                 new TypedDeliveryHandlerShim_Action<TKey, TValue>(
                     topicPartition.Topic,
-                    enableDeliveryReportKey ? message.Key : default(TKey),
-                    enableDeliveryReportValue ? message.Value : default(TValue),
+                    producerBase.enableDeliveryReportKey ? message.Key : default(TKey),
+                    producerBase.enableDeliveryReportValue ? message.Value : default(TValue),
                     deliveryHandler)
             );
         }
+
+        /// <summary>
+        ///     Poll for callback events. Typically, you should not 
+        ///     call this method. Only call on producer instances 
+        ///     where background polling has been disabled.
+        /// </summary>
+        /// <param name="timeout">
+        ///     The maximum period of time to block if no callback events
+        ///     are waiting. You should typically use a relatively short 
+        ///     timout period because this operation cannot be cancelled.
+        /// </param>
+        /// <returns>
+        ///     Returns the number of events served.
+        /// </returns>
+        public int Poll(TimeSpan timeout) => producerBase.Poll(timeout);
+
+        /// <summary>
+        ///     Wait until all outstanding produce requests and delievery report
+        ///     callbacks are completed.
+        ///    
+        ///     [API-SUBJECT-TO-CHANGE] - the semantics and/or type of the return value
+        ///     is subject to change.
+        /// </summary>
+        /// <param name="timeout">
+        ///     The maximum length of time to block. You should typically use a
+        ///     relatively short timout period and loop until the return value
+        ///     becomes zero because this operation cannot be cancelled. 
+        /// </param>
+        /// <returns>
+        ///     The current librdkafka out queue length. This should be interpreted
+        ///     as a rough indication of the number of messages waiting to be sent
+        ///     to or acknowledged by the broker. If zero, there are no outstanding
+        ///     messages or callbacks. Specifically, the value is equal to the sum
+        ///     of the number of produced messages for which a delivery report has
+        ///     not yet been handled and a number which is less than or equal to the
+        ///     number of pending delivery report callback events (as determined by
+        ///     the number of outstanding protocol requests).
+        /// </returns>
+        /// <remarks>
+        ///     This method should typically be called prior to destroying a producer
+        ///     instance to make sure all queued and in-flight produce requests are
+        ///     completed before terminating. The wait time is bounded by the
+        ///     timeout parameter.
+        ///    
+        ///     A related configuration parameter is message.timeout.ms which determines
+        ///     the maximum length of time librdkafka attempts to deliver a message 
+        ///     before giving up and so also affects the maximum time a call to Flush 
+        ///     may block.
+        /// 
+        ///     Where this Producer instance shares a Handle with one or more other
+        ///     producer instances, the Flush method will wait on messages produced by
+        ///     the other producer instances as well.
+        /// </remarks>
+        public int Flush(TimeSpan timeout) => producerBase.Flush(timeout);
+
+        /// <summary>
+        ///     Wait until all outstanding produce requests and delievery report
+        ///     callbacks are completed.
+        /// </summary>
+        /// <remarks>
+        ///     This method should typically be called prior to destroying a producer
+        ///     instance to make sure all queued and in-flight produce requests are
+        ///     completed before terminating. 
+        ///    
+        ///     A related configuration parameter is message.timeout.ms which determines
+        ///     the maximum length of time librdkafka attempts to deliver a message 
+        ///     before giving up and so also affects the maximum time a call to Flush 
+        ///     may block.
+        /// 
+        ///     Where this Producer instance shares a Handle with one or more other
+        ///     producer instances, the Flush method will wait on messages produced by
+        ///     the other producer instances as well.
+        /// </remarks>
+        /// <exception cref="System.OperationCanceledException">
+        ///     Thrown if the operation is cancelled.
+        /// </exception>
+        public void Flush(CancellationToken cancellationToken = default(CancellationToken)) => producerBase.Flush(cancellationToken);
+
+        /// <summary>
+        ///     <see cref="IClient.AddBrokers(string)" />
+        /// </summary>
+        public int AddBrokers(string brokers) => producerBase.AddBrokers(brokers);
+
+        /// <summary>
+        ///     Releases all resources used by this <see cref="Producer" />.
+        /// </summary>
+        public void Dispose() => producerBase.Dispose();
 
         private class TypedTaskDeliveryHandlerShim<K, V> : TaskCompletionSource<DeliveryResult<K, V>>, IDeliveryHandler
         {

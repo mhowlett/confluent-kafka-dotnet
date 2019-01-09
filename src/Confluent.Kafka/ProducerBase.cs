@@ -230,7 +230,7 @@ namespace Confluent.Kafka
         /// <param name="deliveryHandler">
         ///     Handler to invoke when delivery report is available.
         /// </param>
-        protected void Produce(
+        internal void Produce(
             string topic,
             byte[] val, int valOffset, int valLength,
             byte[] key, int keyOffset, int keyLength,
@@ -413,20 +413,6 @@ namespace Confluent.Kafka
         
         internal ProducerBase() {}
 
-
-        /// <summary>
-        ///     Poll for callback events. Typically, you should not 
-        ///     call this method. Only call on producer instances 
-        ///     where background polling has been disabled.
-        /// </summary>
-        /// <param name="timeout">
-        ///     The maximum period of time to block if no callback events
-        ///     are waiting. You should typically use a relatively short 
-        ///     timout period because this operation cannot be cancelled.
-        /// </param>
-        /// <returns>
-        ///     Returns the number of events served.
-        /// </returns>
         public int Poll(TimeSpan timeout)
         {
             if (!manualPoll)
@@ -438,68 +424,11 @@ namespace Confluent.Kafka
         }
 
 
-        /// <summary>
-        ///     Wait until all outstanding produce requests and delievery report
-        ///     callbacks are completed.
-        ///    
-        ///     [API-SUBJECT-TO-CHANGE] - the semantics and/or type of the return value
-        ///     is subject to change.
-        /// </summary>
-        /// <param name="timeout">
-        ///     The maximum length of time to block. You should typically use a
-        ///     relatively short timout period and loop until the return value
-        ///     becomes zero because this operation cannot be cancelled. 
-        /// </param>
-        /// <returns>
-        ///     The current librdkafka out queue length. This should be interpreted
-        ///     as a rough indication of the number of messages waiting to be sent
-        ///     to or acknowledged by the broker. If zero, there are no outstanding
-        ///     messages or callbacks. Specifically, the value is equal to the sum
-        ///     of the number of produced messages for which a delivery report has
-        ///     not yet been handled and a number which is less than or equal to the
-        ///     number of pending delivery report callback events (as determined by
-        ///     the number of outstanding protocol requests).
-        /// </returns>
-        /// <remarks>
-        ///     This method should typically be called prior to destroying a producer
-        ///     instance to make sure all queued and in-flight produce requests are
-        ///     completed before terminating. The wait time is bounded by the
-        ///     timeout parameter.
-        ///    
-        ///     A related configuration parameter is message.timeout.ms which determines
-        ///     the maximum length of time librdkafka attempts to deliver a message 
-        ///     before giving up and so also affects the maximum time a call to Flush 
-        ///     may block.
-        /// 
-        ///     Where this Producer instance shares a Handle with one or more other
-        ///     producer instances, the Flush method will wait on messages produced by
-        ///     the other producer instances as well.
-        /// </remarks>
+
         public int Flush(TimeSpan timeout)
             => KafkaHandle.Flush(timeout.TotalMillisecondsAsInt());
 
 
-        /// <summary>
-        ///     Wait until all outstanding produce requests and delievery report
-        ///     callbacks are completed.
-        /// </summary>
-        /// <remarks>
-        ///     This method should typically be called prior to destroying a producer
-        ///     instance to make sure all queued and in-flight produce requests are
-        ///     completed before terminating. 
-        ///    
-        ///     A related configuration parameter is message.timeout.ms which determines
-        ///     the maximum length of time librdkafka attempts to deliver a message 
-        ///     before giving up and so also affects the maximum time a call to Flush 
-        ///     may block.
-        /// 
-        ///     Where this Producer instance shares a Handle with one or more other
-        ///     producer instances, the Flush method will wait on messages produced by
-        ///     the other producer instances as well.
-        /// </remarks>
-        /// <exception cref="System.OperationCanceledException">
-        ///     Thrown if the operation is cancelled.
-        /// </exception>
         public void Flush(CancellationToken cancellationToken)
         {
             while (true)
@@ -518,9 +447,6 @@ namespace Confluent.Kafka
         }
         
         
-        /// <summary>
-        ///     Releases all resources used by this <see cref="Producer" />.
-        /// </summary>
         public void Dispose()
         {
             Dispose(true);
@@ -583,23 +509,14 @@ namespace Confluent.Kafka
         }
 
 
-        /// <summary>
-        ///     <see cref="IClient.Name" />
-        /// </summary>
+
         public string Name
             => KafkaHandle.Name;
 
 
-        /// <summary>
-        ///     <see cref="IClient.AddBrokers(string)" />
-        /// </summary>
         public int AddBrokers(string brokers)
             => KafkaHandle.AddBrokers(brokers);
 
-
-        /// <summary>
-        ///     <see cref="IClient.Handle" />
-        /// </summary>
         public Handle Handle 
         {
             get
