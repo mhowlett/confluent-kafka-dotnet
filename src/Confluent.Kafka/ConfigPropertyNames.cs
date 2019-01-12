@@ -78,14 +78,27 @@ namespace Confluent.Kafka
             public const string ConsumeResultFields = "dotnet.consumer.consume.result.fields";
         }
 
+
         /// <summary>
         ///     The maximum length of time (in milliseconds) before a cancellation request
-        ///     is acted on. Low values may result in measurably higher CPU usage.
+        ///     is acted on (excluding Consumer.OffsetsForTimes and Consumer.Committed).
+        ///     Low values may result in measurably higher CPU usage.
         ///     
         ///     default: 100
         ///     range: 1 &lt;= dotnet.cancellation.delay.max.ms &lt;= 10000
         /// </summary>
         public const string CancellationDelayMaxMs = "dotnet.cancellation.delay.max.ms";
-        
+
+
+        /// <summary>
+        ///     The maximum time an informational broker request (currently
+        ///     Consumer.OffsetsForTimes and Consumer.Committed) my block. Also, the
+        ///     maximum amount of time a cancellation request to one of these methods
+        ///     may block. This property reflects a current implementation detail and
+        ///     in the future it will become irrelevant.
+        ///
+        ///     default: 30000
+        /// </summary>
+        public const string BlockingRequestTimeoutMs = "dotnet.blocking.request.timeout.ms";
     }
 }

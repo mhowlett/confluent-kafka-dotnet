@@ -53,6 +53,8 @@ namespace Confluent.Kafka
         private readonly bool enableTimestampMarshaling = true;
         private readonly bool enableTopicNameMarshaling = true;
 
+        private readonly int blockingRequestTimeoutMs = 30000;
+
         private readonly SafeKafkaHandle kafkaHandle;
 
 
@@ -197,7 +199,18 @@ namespace Confluent.Kafka
             }
 
             var modifiedConfig = config
-                .Where(prop => prop.Key != ConfigPropertyNames.Consumer.ConsumeResultFields);
+                .Where(prop =>
+                    prop.Key != ConfigPropertyNames.Consumer.ConsumeResultFields &&
+                    prop.Key != ConfigPropertyNames.BlockingRequestTimeoutMs);
+
+            var blockingRequestCancellationDelayMsObj = config.FirstOrDefault(prop => prop.Key == ConfigPropertyNames.BlockingRequestTimeoutMs).Value;
+            if (blockingRequestCancellationDelayMsObj != null)
+            {
+                if (!int.TryParse(blockingRequestCancellationDelayMsObj.ToString(), out this.blockingRequestTimeoutMs))
+                {
+                    throw new ArgumentException($"Property '{ConfigPropertyNames.BlockingRequestTimeoutMs}' must have an integer value.");
+                }
+            }
 
             var enabledFieldsObj = config.FirstOrDefault(prop => prop.Key == ConfigPropertyNames.Consumer.ConsumeResultFields).Value;
             if (enabledFieldsObj != null)
@@ -671,6 +684,7 @@ namespace Confluent.Kafka
             kafkaHandle.Assign(null);
         }
 
+
         /// <summary>
         ///     Store offsets for a single partition based on the topic/partition/offset
         ///     of a consume result.
@@ -876,12 +890,8 @@ namespace Confluent.Kafka
         /// <param name="partitions">
         ///     the partitions to get the committed offsets for.
         /// </param>
-        /// <param name="timeout">
-        ///     The maximum period of time the call may block.
-        /// </param>
         /// <param name="cancellationToken">
-        ///     A cancellation token that can be used to cancel this operation
-        ///     (currently ignored).
+        ///     A cancellation token that can be used to cancel this operation.
         /// </param>
         /// <exception cref="Confluent.Kafka.KafkaException">
         ///     Thrown if the request failed.
@@ -893,11 +903,24 @@ namespace Confluent.Kafka
         ///     property of the exception.
         /// </exception>
         public List<TopicPartitionOffset> Committed(
-            IEnumerable<TopicPartition> partitions, TimeSpan timeout,
-            CancellationToken cancellationToken = default(CancellationToken)
-        )
-            // TODO: use a librdkafka queue for this.
-            => kafkaHandle.Committed(partitions, (IntPtr)timeout.TotalMillisecondsAsInt());
+            IEnumerable<TopicPartition> partitions,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            while (true)
+            {
+                try
+                {
+                    return kafkaHandle.Committed(partitions, (IntPtr)this.blockingRequestTimeoutMs);
+                }
+                catch (KafkaException e)
+                {
+                    if (e.Error.Code == ErrorCode.RequestTimedOut)
+                    {
+                        continue;
+                    }
+                }
+            }
+        }
 
 
         /// <summary>
@@ -932,12 +955,8 @@ namespace Confluent.Kafka
         /// <param name="timestampsToSearch">
         ///     The mapping from partition to the timestamp to look up.
         /// </param>
-        /// <param name="timeout">
-        ///     The maximum period of time the call may block.
-        /// </param>
         /// <param name="cancellationToken">
-        ///     A cancellation token that can be used to cancel this operation
-        ///     (currently ignored).
+        ///     A cancellation token that can be used to cancel this operation.
         /// </param>
         /// <returns>
         ///     A mapping from partition to the timestamp and offset of the first message with
@@ -953,11 +972,24 @@ namespace Confluent.Kafka
         ///     property of the exception.
         /// </exception>
         public List<TopicPartitionOffset> OffsetsForTimes(
-            IEnumerable<TopicPartitionTimestamp> timestampsToSearch, TimeSpan timeout,
-            CancellationToken cancellationToken = default(CancellationToken)
-        )
-            // TODO: use a librdkafka queue for this.
-            => kafkaHandle.OffsetsForTimes(timestampsToSearch, timeout.TotalMillisecondsAsInt());
+            IEnumerable<TopicPartitionTimestamp> timestampsToSearch,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            while (true)
+            {
+                try
+                {
+                    return kafkaHandle.OffsetsForTimes(timestampsToSearch, this.blockingRequestTimeoutMs);
+                }
+                catch (KafkaException e)
+                {
+                    if (e.Error.Code == ErrorCode.RequestTimedOut)
+                    {
+                        continue;
+                    }
+                }
+            }
+        }
 
 
         /// <summary>

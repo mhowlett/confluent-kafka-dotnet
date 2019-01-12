@@ -173,9 +173,9 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Committed(IEnumerable{TopicPartition}, TimeSpan, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Committed(IEnumerable{TopicPartition}, CancellationToken)" />
         /// </summary>
-        List<TopicPartitionOffset> Committed(IEnumerable<TopicPartition> partitions, TimeSpan timeout, CancellationToken cancellationToken = default(CancellationToken));
+        List<TopicPartitionOffset> Committed(IEnumerable<TopicPartition> partitions, CancellationToken cancellationToken = default(CancellationToken));
 
 
         /// <summary>
@@ -185,9 +185,9 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.OffsetsForTimes(IEnumerable{TopicPartitionTimestamp}, TimeSpan, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.OffsetsForTimes(IEnumerable{TopicPartitionTimestamp}, CancellationToken)" />
         /// </summary>
-        List<TopicPartitionOffset> OffsetsForTimes(IEnumerable<TopicPartitionTimestamp> timestampsToSearch, TimeSpan timeout, CancellationToken cancellationToken = default(CancellationToken));
+        List<TopicPartitionOffset> OffsetsForTimes(IEnumerable<TopicPartitionTimestamp> timestampsToSearch, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Close" />.

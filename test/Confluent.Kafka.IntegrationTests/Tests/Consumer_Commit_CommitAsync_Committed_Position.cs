@@ -60,7 +60,7 @@ namespace Confluent.Kafka.IntegrationTests
                 
                 // Test #0 (empty cases)
                 consumer.Commit(new List<TopicPartitionOffset>()); // should not throw.
-                var committed = consumer.Committed(new List<TopicPartition>(), TimeSpan.FromSeconds(10));
+                var committed = consumer.Committed(new List<TopicPartition>());
                 Assert.Empty(committed);
                 var ps = consumer.Position(new List<TopicPartition>());
                 Assert.Empty(ps);
@@ -78,7 +78,7 @@ namespace Confluent.Kafka.IntegrationTests
                 var os = consumer.Commit();
                 Assert.Equal(firstMsgOffset + 1, os[0].Offset);
                 ps = consumer.Position(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 1, co[0].Offset);
                 Assert.Equal(firstMsgOffset + 1, ps[0].Offset);
                 
@@ -87,7 +87,7 @@ namespace Confluent.Kafka.IntegrationTests
                 os = consumer.Commit();
                 Assert.Equal(firstMsgOffset + 2, os[0].Offset);
                 ps = consumer.Position(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
-                co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 2, ps[0].Offset);
                 Assert.Equal(firstMsgOffset + 2, ps[0].Offset);
             }
@@ -96,7 +96,7 @@ namespace Confluent.Kafka.IntegrationTests
             using (var consumer = new Consumer(consumerConfig))
             {
                 consumer.Commit(new List<TopicPartitionOffset> { new TopicPartitionOffset(singlePartitionTopic, 0, firstMsgOffset + 5) });
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 5, co[0].Offset);
             }
             using (var consumer = new Consumer(consumerConfig))
@@ -106,7 +106,7 @@ namespace Confluent.Kafka.IntegrationTests
                 var record = consumer.Consume(TimeSpan.FromMilliseconds(1000));
                 var ps = consumer.Position(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 6, ps[0].Offset);
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 5, co[0].Offset);
             }
 
@@ -115,7 +115,7 @@ namespace Confluent.Kafka.IntegrationTests
             {
                 consumer.Assign(new TopicPartition(singlePartitionTopic, 0));
                 consumer.Commit(new List<TopicPartitionOffset> { new TopicPartitionOffset(singlePartitionTopic, 0, firstMsgOffset + 3) });
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 3, co[0].Offset);
             }
             using (var consumer = new Consumer(consumerConfig))
@@ -124,7 +124,7 @@ namespace Confluent.Kafka.IntegrationTests
                 var record = consumer.Consume(TimeSpan.FromMilliseconds(1000));
                 var ps = consumer.Position(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 4, ps[0].Offset);
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 3, co[0].Offset);
             }
 
@@ -137,7 +137,7 @@ namespace Confluent.Kafka.IntegrationTests
                 var record3 = consumer.Consume(TimeSpan.FromMilliseconds(1000));
                 consumer.Commit(record3);
                 var record4 = consumer.Consume(TimeSpan.FromMilliseconds(1000));
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 3, co[0].Offset);
             }
             using (var consumer = new Consumer(consumerConfig))
@@ -145,7 +145,7 @@ namespace Confluent.Kafka.IntegrationTests
                 consumer.Assign(new TopicPartition(singlePartitionTopic, 0));
                 var record = consumer.Consume(TimeSpan.FromMilliseconds(1000));
                 Assert.Equal(firstMsgOffset + 3, record.Offset);
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 3, co[0].Offset);
             }
 
@@ -158,7 +158,7 @@ namespace Confluent.Kafka.IntegrationTests
                 var record3 = consumer.Consume(TimeSpan.FromMilliseconds(1000));
                 consumer.Commit(record3);
                 var record4 = consumer.Consume(TimeSpan.FromMilliseconds(1000));
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 3, co[0].Offset);
             }
             using (var consumer = new Consumer(consumerConfig))
@@ -166,7 +166,7 @@ namespace Confluent.Kafka.IntegrationTests
                 consumer.Assign(new TopicPartition(singlePartitionTopic, 0));
                 var record = consumer.Consume(TimeSpan.FromMilliseconds(1000));
                 Assert.Equal(firstMsgOffset + 3, record.Offset);
-                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) }, TimeSpan.FromSeconds(10));
+                var co = consumer.Committed(new List<TopicPartition> { new TopicPartition(singlePartitionTopic, 0) });
                 Assert.Equal(firstMsgOffset + 3, co[0].Offset);
             }
 
