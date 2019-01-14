@@ -131,15 +131,15 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Commit(CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Commit()" />
         /// </summary>
-        List<TopicPartitionOffset> Commit(CancellationToken cancellationToken = default(CancellationToken));
+        List<TopicPartitionOffset> Commit();
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Commit(IEnumerable{TopicPartitionOffset}, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Commit(IEnumerable{TopicPartitionOffset})" />
         /// </summary>
-        void Commit(IEnumerable<TopicPartitionOffset> offsets, CancellationToken cancellationToken = default(CancellationToken));
+        void Commit(IEnumerable<TopicPartitionOffset> offsets);
 
 
         /// <summary>
@@ -161,9 +161,9 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Committed(IEnumerable{TopicPartition}, TimeSpan, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Committed(IEnumerable{TopicPartition})" />
         /// </summary>
-        List<TopicPartitionOffset> Committed(IEnumerable<TopicPartition> partitions, TimeSpan timeout, CancellationToken cancellationToken = default(CancellationToken));
+        List<TopicPartitionOffset> Committed(IEnumerable<TopicPartition> partitions);
 
 
         /// <summary>
@@ -173,9 +173,10 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.OffsetsForTimes(IEnumerable{TopicPartitionTimestamp}, TimeSpan, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.OffsetsForTimes(IEnumerable{TopicPartitionTimestamp})" />
         /// </summary>
-        List<TopicPartitionOffset> OffsetsForTimes(IEnumerable<TopicPartitionTimestamp> timestampsToSearch, TimeSpan timeout, CancellationToken cancellationToken = default(CancellationToken));
+        List<TopicPartitionOffset> OffsetsForTimes(IEnumerable<TopicPartitionTimestamp> timestampsToSearch);
+
 
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.ConsumerBase.Close" />.

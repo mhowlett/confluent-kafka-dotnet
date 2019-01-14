@@ -274,10 +274,6 @@ namespace Confluent.Kafka
         /// <param name="result">
         ///     The ConsumeResult instance used to determine the committed offset.
         /// </param>
-        /// <param name="cancellationToken">
-        ///     A cancellation token that can be used to cancel this operation
-        ///     (currently ignored).
-        /// </param>
         /// <exception cref="Confluent.Kafka.KafkaException">
         ///     Thrown if the request failed.
         /// </exception>
@@ -289,7 +285,7 @@ namespace Confluent.Kafka
         ///     and will next receive the message with offset N. Hence, this method commits an 
         ///     offset of <paramref name="result" />.Offset + 1.
         /// </remarks>
-        public void Commit(ConsumeResult<TKey, TValue> result, CancellationToken cancellationToken = default(CancellationToken))
+        public void Commit(ConsumeResult<TKey, TValue> result)
         {
             if (result.Message == null)
             {
@@ -383,9 +379,9 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.Consumer{TKey,TValue}.Commit(ConsumeResult{TKey, TValue}, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.Consumer{TKey,TValue}.Commit(ConsumeResult{TKey, TValue})" />
         /// </summary>
-        public void Commit(ConsumeResult result, CancellationToken cancellationToken = default(CancellationToken))
+        public void Commit(ConsumeResult result)
         {
             if (result.Message == null)
             {

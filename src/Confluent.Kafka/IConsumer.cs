@@ -39,9 +39,9 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.Consumer.Commit(ConsumeResult, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.Consumer.Commit(ConsumeResult)" />
         /// </summary>
-        void Commit(ConsumeResult result, CancellationToken cancellationToken = default(CancellationToken));
+        void Commit(ConsumeResult result);
     }
 
 
@@ -64,8 +64,8 @@ namespace Confluent.Kafka
 
 
         /// <summary>
-        ///     Refer to <see cref="Confluent.Kafka.Consumer{TKey,TValue}.Commit(ConsumeResult{TKey, TValue}, CancellationToken)" />
+        ///     Refer to <see cref="Confluent.Kafka.Consumer{TKey,TValue}.Commit(ConsumeResult{TKey, TValue})" />
         /// </summary>
-        void Commit(ConsumeResult<TKey, TValue> result, CancellationToken cancellationToken = default(CancellationToken));
+        void Commit(ConsumeResult<TKey, TValue> result);
     }
 }

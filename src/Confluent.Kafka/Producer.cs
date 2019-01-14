@@ -234,17 +234,12 @@ namespace Confluent.Kafka
         /// <param name="message">
         ///     The message to produce.
         /// </param>
-        /// <param name="cancellationToken">
-        ///     A cancellation token that can be used to abort this request.
-        /// </param>
         /// <returns>
         ///     A Task which will complete with a delivery report corresponding to
         ///     the produce request, or an exception if an error occured.
         /// </returns>
         public Task<DeliveryResult<TKey, TValue>> ProduceAsync(
-            TopicPartition topicPartition,
-            Message<TKey, TValue> message,
-            CancellationToken cancellationToken = default(CancellationToken))
+            TopicPartition topicPartition, Message<TKey, TValue> message)
         {
             var keyBytes = (keySerializer != null)
                 ? keySerializer.Serialize(message.Key, true, message, topicPartition)
@@ -265,8 +260,6 @@ namespace Confluent.Kafka
                 var handler = new TypedTaskDeliveryHandlerShim<TKey, TValue>(topicPartition.Topic,
                     enableDeliveryReportKey ? message.Key : default(TKey),
                     enableDeliveryReportValue ? message.Value : default(TValue));
-
-                cancellationToken.Register(() => handler.TrySetException(new TaskCanceledException()));
 
                 base.Produce(
                     topicPartition.Topic,
@@ -309,19 +302,12 @@ namespace Confluent.Kafka
         /// <param name="message">
         ///     The message to produce.
         /// </param>
-        /// <param name="cancellationToken">
-        ///     A cancellation token that can be used to abort this request.
-        /// </param>
         /// <returns>
         ///     A Task which will complete with a delivery report corresponding to
         ///     the produce request, or an exception if an error occured.
         /// </returns>
-        public Task<DeliveryResult<TKey, TValue>> ProduceAsync(
-            string topic,
-            Message<TKey, TValue> message,
-            CancellationToken cancellationToken = default(CancellationToken)
-        )
-            => ProduceAsync(new TopicPartition(topic, Partition.Any), message, cancellationToken);
+        public Task<DeliveryResult<TKey, TValue>> ProduceAsync(string topic, Message<TKey, TValue> message)
+            => ProduceAsync(new TopicPartition(topic, Partition.Any), message);
 
 
         /// <summary>
@@ -552,25 +538,19 @@ namespace Confluent.Kafka
         /// <param name="message">
         ///     The message to produce.
         /// </param>
-        /// <param name="cancellationToken">
-        ///     A cancellation token that can be used to abort this request.
-        /// </param>
         /// <returns>
         ///     A Task which will complete with a delivery report corresponding to
         ///     the produce request, or an exception if an error occured.
         /// </returns>
         public Task<DeliveryResult> ProduceAsync(
             TopicPartition topicPartition,
-            Message message,
-            CancellationToken cancellationToken = default(CancellationToken))
+            Message message)
         {
             if (this.enableDeliveryReports)
             {
                 var handler = new TaskDeliveryHandlerShim(topicPartition.Topic,
                     enableDeliveryReportKey ? message.Key : null,
                     enableDeliveryReportValue ? message.Value : null);
-
-                cancellationToken.Register(() => handler.TrySetException(new TaskCanceledException()));
 
                 var keyBytes = message.Key;
                 var valBytes = message.Value;
@@ -618,18 +598,12 @@ namespace Confluent.Kafka
         /// <param name="message">
         ///     The message to produce.
         /// </param>
-        /// <param name="cancellationToken">
-        ///     A cancellation token that can be used to abort this request.
-        /// </param>
         /// <returns>
         ///     A Task which will complete with a delivery report corresponding to
         ///     the produce request, or an exception if an error occured.
         /// </returns>
-        public Task<DeliveryResult> ProduceAsync(
-            string topic, Message message,
-            CancellationToken cancellationToken = default(CancellationToken)
-        )
-            => ProduceAsync(new TopicPartition(topic, Partition.Any), message, cancellationToken);
+        public Task<DeliveryResult> ProduceAsync(string topic, Message message)
+            => ProduceAsync(new TopicPartition(topic, Partition.Any), message);
 
         /// <summary>
         ///     Asynchronously send a single message to a Kafka topic/partition.
