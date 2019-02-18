@@ -72,9 +72,14 @@ namespace Confluent.Kafka
         internal protected IAsyncDeserializer<TValue> AsyncValueDeserializer { get; set; }
 
         /// <summary>
-        ///     The configured rebalance handler.
+        ///     The configured partition assignment handler.
         /// </summary>
-        internal protected Action<IConsumer<TKey, TValue>, RebalanceEvent> RebalanceHandler { get; set; }
+        internal protected Action<IConsumer<TKey, TValue>, IList<TopicPartition>> AssignmentHandler { get; set; }
+
+        /// <summary>
+        ///     The configured partition revocation handler.
+        /// </summary>
+        internal protected Action<IConsumer<TKey, TValue>, IList<TopicPartition>> RevocationHandler { get; set; }
 
         /// <summary>
         ///     The configured offsets committed handler.
@@ -98,9 +103,12 @@ namespace Confluent.Kafka
                 offsetsCommittedHandler = this.OffsetsCommittedHandler == null
                     ? default(Action<CommittedOffsets>)
                     : offsets => this.OffsetsCommittedHandler(consumer, offsets),
-                rebalanceHandler = this.RebalanceHandler == null
-                    ? default(Action<RebalanceEvent>)
-                    : rebalanceEvent => this.RebalanceHandler(consumer, rebalanceEvent)
+                assignmentHandler = this.AssignmentHandler == null
+                    ? default(Action<IList<TopicPartition>>)
+                    : partitions => this.AssignmentHandler(consumer, partitions),
+                revocationHandler = this.RevocationHandler == null
+                    ? default(Action<IList<TopicPartition>>)
+                    : partitions => this.RevocationHandler(consumer, partitions)
             };
         }
 
@@ -243,12 +251,12 @@ namespace Confluent.Kafka
         }
 
         /// <summary>
-        ///     Set the consumer group rebalance handler. Except for the initial partition assignment
-        ///     and final assignment revocation, a group rebalance will cause this handler to be
-        ///     called twice. The first time to advise that the current assignment has been revoked
-        ///     and the second time to advise of the new assignment.
-        /// 
-        ///     If you do not call an Assign or Unassign method in this handler, or do not specify
+        ///     Set one or both consumer group rebalance handlers. (if specified) assignmentHandler
+        ///     is called each time the consumer is notified of a new partition assignment by the
+        ///     group. Every group assignment has a corresponding revocation phase. (if specified)
+        ///     revocationHandler is called when a group assignment is revoked.
+        ///
+        ///     If you do not call an Assign or Unassign method your handlers, or do not specify
         ///     a handler, partitions will be assigned (or unassigned) automatically, matching the
         ///     assignment dictated by the consumer group. This default behavior will not occur if
         ///     you call Assign yourself in the handler. The set of partitions you assign to is not
@@ -262,13 +270,16 @@ namespace Confluent.Kafka
         /// <remarks>
         ///     May execute as a side-effect of the Consumer.Consume call (on the same thread).
         /// </remarks>
-        public ConsumerBuilder<TKey, TValue> SetRebalanceHandler(Action<IConsumer<TKey, TValue>, RebalanceEvent> rebalanceHandler)
+        public ConsumerBuilder<TKey, TValue> SetRebalanceHandlers(
+            Action<IConsumer<TKey, TValue>, IList<TopicPartition>> assignmentHandler,
+            Action<IConsumer<TKey, TValue>, IList<TopicPartition>> revocationHandler)
         {
-            if (this.RebalanceHandler != null)
+            if (this.AssignmentHandler != null || this.RevocationHandler != null)
             {
-                throw new InvalidOperationException("Rebalance handler may not be specified more than once.");
+                throw new InvalidOperationException("Rebalance handlers may not be specified more than once.");
             }
-            this.RebalanceHandler = rebalanceHandler;
+            this.AssignmentHandler = assignmentHandler;
+            this.RevocationHandler = revocationHandler;
             return this;
         }
 

@@ -51,14 +51,11 @@ namespace Confluent.Kafka.IntegrationTests
             using (var producer = new ProducerBuilder<byte[], byte[]>(producerConfig).Build())
             using (var consumer =
                 new ConsumerBuilder<byte[], byte[]>(consumerConfig)
-                    .SetRebalanceHandler((c, e) =>
-                    {
-                        if (e.IsAssignment)
+                    .SetRebalanceHandlers((c, partitions) =>
                         {
-                            c.Assign(e.Partitions);
-                            assignment = e.Partitions;
-                        }
-                    })
+                            c.Assign(partitions);
+                            assignment = partitions;
+                        }, null)
                     .Build())
             {
                 consumer.Subscribe(singlePartitionTopic);

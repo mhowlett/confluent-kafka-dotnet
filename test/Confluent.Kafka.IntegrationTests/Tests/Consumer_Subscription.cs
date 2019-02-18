@@ -47,22 +47,19 @@ namespace Confluent.Kafka.IntegrationTests
 
             using (var consumer =
                 new ConsumerBuilder<byte[], byte[]>(consumerConfig)
-                    .SetRebalanceHandler((c, e) =>
-                    {
-                        if (e.IsAssignment)
+                    .SetRebalanceHandlers((c, partitions) =>
                         {
-                            Assert.Single(e.Partitions);
-                            Assert.Equal(firstProduced.TopicPartition, e.Partitions[0]);
-                            c.Assign(e.Partitions.Select(p => new TopicPartitionOffset(p, firstProduced.Offset)));
+                            Assert.Single(partitions);
+                            Assert.Equal(firstProduced.TopicPartition, partitions[0]);
+                            c.Assign(partitions.Select(p => new TopicPartitionOffset(p, firstProduced.Offset)));
                             // test non-empty case.
                             Assert.Single(c.Subscription);
                             Assert.Equal(singlePartitionTopic, c.Subscription[0]);
-                        }
-                        else
+                        },
+                        (c, partitions) =>
                         {
                             c.Unassign();
-                        }
-                    })
+                        })
                     .Build())
             {
                 // Test empty case.
