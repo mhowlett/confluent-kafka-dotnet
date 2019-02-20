@@ -68,7 +68,7 @@ namespace Confluent.Kafka
         /// </summary>
         /// <param name="topic"></param>
         void Subscribe(string topic);
-        
+
 
         /// <summary>
         ///     Refer to <see cref="Confluent.Kafka.Consumer{TKey,TValue}.Unsubscribe" />
