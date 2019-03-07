@@ -3,9 +3,9 @@
 cat <<EOF >$OUT
 broker.id=$BROKER_ID
 
-auto.create.topics.enable=false
+auto.create.topics.enable=true
 delete.topic.enable=true
-min.insync.replicas=2
+min.insync.replicas=1
 
 listeners=PLAINTEXT://:$BROKER_PORT
 advertised.listeners=PLAINTEXT://$ADVERTISED_IP:$BROKER_PORT
