@@ -4,7 +4,7 @@ docker run -d \
     --name schema_registry \
     --network host \
     -e SCHEMA_REGISTRY_HOST_NAME="schema-registry" \
-    -e SCHEMA_REGISTRY_LISTENERS="http://0.0.0.0:8081" \
+    -e SCHEMA_REGISTRY_LISTENERS="http://$BIND_ADDRESS:8081" \
     -e SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS="PLAINTEXT://127.0.0.1:9092" \
     confluentinc/cp-schema-registry
 
@@ -15,7 +15,7 @@ docker run -d \
     -v schema_registry_ssl:/conf/schema-registry \
     -e SCHEMA_REGISTRY_HOST_NAME="schema-registry-ssl" \
     -e SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS="PLAINTEXT://127.0.0.1:9092" \
-    -e SCHEMA_REGISTRY_LISTENERS="http://0.0.0.0:8082" \
+    -e SCHEMA_REGISTRY_LISTENERS="http://$BIND_ADDRESS:8082" \
     -e SCHEMA_REGISTRY_KAFKASTORE_CONNECTION_URL="127.0.0.1:2181" \
     -e SCHEMA_REGISTRY_AUTHENTICATION_METHOD=BASIC \
     -e SCHEMA_REGISTRY_AUTHENTICATION_REALM=SchemaRegistry \
