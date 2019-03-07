@@ -8,7 +8,7 @@ delete.topic.enable=true
 min.insync.replicas=2
 
 listeners=PLAINTEXT://:$BROKER_PORT
-advertised.listeners=PLAINTEXT://$BROKER_IP:$BROKER_PORT
+advertised.listeners=PLAINTEXT://$ADVERTISED_IP:$BROKER_PORT
 
 num.network.threads=3
 num.io.threads=8
@@ -32,7 +32,7 @@ log.segment.bytes=1073741824
 
 log.retention.check.interval.ms=300000
 
-zookeeper.connect=$ZK_IP_1:$ZK_PORT_1
+zookeeper.connect=$ZK_IP:$ZK_PORT
 zookeeper.connection.timeout.ms=6000
 
 group.initial.rebalance.delay.ms=3

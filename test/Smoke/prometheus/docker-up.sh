@@ -7,8 +7,8 @@ docker run -d \
     --network=host \
     -v prometheus:/data/prometheus \
     -e SCRAPE_INTERVAL="2s" -e EVAL_INTERVAL="2s" \
-    -e ZK_IP=127.0.0.1 -e ZK_METRICS_PORT=7062 \
-    -e KAFKA_IP_1=127.0.0.1 -e KAFKA_METRICS_PORT_1=7071 \
-    -e KAFKA_IP_2=127.0.0.1 -e KAFKA_METRICS_PORT_2=7072 \
-    -e KAFKA_IP_3=127.0.0.1 -e KAFKA_METRICS_PORT_3=7073 \
+    -e ZK_IP=$ADVERTISED_IP -e ZK_METRICS_PORT=7062 \
+    -e BROKER_1_IP=$ADVERTISED_IP -e BROKER_1_METRICS_PORT=7071 \
+    -e BROKER_2_IP=$ADVERTISED_IP -e BROKER_2_METRICS_PORT=7072 \
+    -e BROKER_3_IP=$ADVERTISED_IP -e BROKER_3_METRICS_PORT=7073 \
     confluentinc/dotnet_test_prometheus:1

@@ -3,7 +3,6 @@
 cat <<EOF >$OUT
 dataDir=/data/zookeeper
 clientPort=$CLIENT_PORT
-clientPortAddress=$CLIENT_PORT_ADDRESS
 maxClientCnxns=0
 autopurge.snapRetainCount=3
 autopurge.purgeInterval=24
