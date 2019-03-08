@@ -11,5 +11,4 @@ docker run -d \
     -e BROKER_1_IP=$ADVERTISED_IP -e BROKER_1_METRICS_PORT=7071 \
     -e BROKER_2_IP=$ADVERTISED_IP -e BROKER_2_METRICS_PORT=7072 \
     -e BROKER_3_IP=$ADVERTISED_IP -e BROKER_3_METRICS_PORT=7073 \
-    confluentinc/dotnet_test_prometheus:1 \
-    sleep 30; /opt/bootstrap.sh
+    confluentinc/dotnet_test_prometheus:1 bash -c "sleep 30; /opt/bootstrap.sh"
