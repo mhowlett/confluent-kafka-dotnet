@@ -1,6 +1,10 @@
 #!/bin/bash
 
-export ADVERTISED_IP=$ADVERTISED_IP
+if [ "$#" -ne 1 ]; then
+    echo "usage: .. <advertised_ip>"
+fi
+
+export ADVERTISED_IP=$1
 ./zookeeper/docker-up.sh
 ./kafka/docker-up.sh
 ./schemaregistry/docker-up.sh
