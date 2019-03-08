@@ -6,7 +6,8 @@ docker run -d \
     -e SCHEMA_REGISTRY_HOST_NAME="schema-registry" \
     -e SCHEMA_REGISTRY_LISTENERS="http://0.0.0.0:8081" \
     -e SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS="PLAINTEXT://$ADVERTISED_IP:9092" \
-    confluentinc/cp-schema-registry
+    confluentinc/cp-schema-registry \
+    bash -c "sleep 30; /etc/confluent/docker/run"
 
 docker volume create schema_registry_ssl
 docker run -d \
@@ -22,7 +23,7 @@ docker run -d \
     -e SCHEMA_REGISTRY_AUTHENTICATION_ROLES=Testers \
     -e SCHEMA_REGISTRY_OPTS="-Djava.security.auth.login.config=/conf/schema-registry/schema-registry.jaas" \
     confluentinc/cp-schema-registry \
-    bash -c "sleep 2; /etc/confluent/docker/run"
+    bash -c "sleep 30; /etc/confluent/docker/run"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 docker cp $SCRIPT_DIR/conf/schema-registry/login.properties schema_registry_ssl:/conf/schema-registry/
 docker cp $SCRIPT_DIR/conf/schema-registry/schema-registry.jaas schema_registry_ssl:/conf/schema-registry/
