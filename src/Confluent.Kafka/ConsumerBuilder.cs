@@ -254,7 +254,7 @@ namespace Confluent.Kafka
         ///     This handler is called when a new consumer group partition assignment has been received
         ///     by this consumer. Note: corresponding to every call to this handler, there will be a
         ///     corresponding call to the partition assignment revoked handler (if one has been set using
-        ///     <see cref="SetPartitionAssignmentRevokedHandler" />).
+        ///     <see cref="SetPartitionsRevokedHandler" />).
         /// 
         ///     If you do not call the Assign method in this handler, or do not specify a handler,
         ///     partitions will be assigned to be read from automatically, matching the assignment 
@@ -269,7 +269,7 @@ namespace Confluent.Kafka
         /// <remarks>
         ///     May execute as a side-effect of the Consumer.Consume call (on the same thread).
         /// </remarks>
-        public ConsumerBuilder<TKey, TValue> SetPartitionAssignmentHandler(Action<IConsumer<TKey, TValue>, List<TopicPartition>> partitionAssignmentHandler)
+        public ConsumerBuilder<TKey, TValue> SetPartitionsRevokedHandler(Action<IConsumer<TKey, TValue>, List<TopicPartition>> partitionAssignmentHandler)
         {
             if (this.PartitionAssignmentHandler != null)
             {
@@ -290,7 +290,7 @@ namespace Confluent.Kafka
         /// <remarks>
         ///     May execute as a side-effect of the Consumer.Consume call (on the same thread).
         /// </remarks>
-        public ConsumerBuilder<TKey, TValue> SetPartitionAssignmentRevokedHandler(Action<IConsumer<TKey, TValue>, List<TopicPartition>> partitionAssignmnetRevokedHandler)
+        public ConsumerBuilder<TKey, TValue> SetPartitionsRevokedHandler(Action<IConsumer<TKey, TValue>, List<TopicPartition>> partitionAssignmnetRevokedHandler)
         {
             if (this.PartitionAssignmentRevokedHandler != null)
             {

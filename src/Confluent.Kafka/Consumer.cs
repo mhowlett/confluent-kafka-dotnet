@@ -212,7 +212,7 @@ namespace Confluent.Kafka
         ///     <see cref="Confluent.Kafka.Consumer{TKey,TValue}.Assign(TopicPartition)" />
         ///     or implicitly.
         /// </summary>
-        public List<TopicPartition> AssignedPartitions
+        public List<TopicPartition> Assignment
             => kafkaHandle.GetAssignment();
 
 
