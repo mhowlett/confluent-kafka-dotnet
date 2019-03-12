@@ -2,6 +2,7 @@
 
 if [ "$#" -ne 1 ]; then
     echo "usage: .. <confluent-kafka-dotnet path>"
+    exit 1
 fi
 
 docker volume create confluent_kafka_dotnet
