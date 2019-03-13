@@ -28,9 +28,9 @@ transaction.state.log.min.isr=2
 
 log.retention.hours=-1
 log.retention.bytes=-1
-log.segment.bytes=1073741824
+log.segment.bytes=$LOG_SEGMENT_BYTES
 
-log.retention.check.interval.ms=300000
+log.retention.check.interval.ms=$LOG_RETENTION_CHECK_INTERVAL_MS
 
 zookeeper.connect=$ZK_IP:$ZK_PORT
 zookeeper.connection.timeout.ms=6000

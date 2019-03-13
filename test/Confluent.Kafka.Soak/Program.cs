@@ -89,7 +89,8 @@ namespace Confluent.Kafka.Soak
                     ReplicationFactor = 1,
                     Configs = new Dictionary<string, string>
                     {
-                        { "retention.bytes", "100000000" }
+                        { "retention.bytes", "100000000" },
+                        { "retention.ms", "60000" }
                     }
                 } });
             }

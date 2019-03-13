@@ -11,6 +11,8 @@ docker run -d \
     -e ADVERTISED_IP=$ADVERTISED_IP \
     -e BROKER_PORT=9092 \
     -e ZK_IP=$ADVERTISED_IP -e ZK_PORT=2181 \
+    -e LOG_SEGMENT_BYTES=100000000 \
+    -e LOG_RETENTION_CHECK_INTERVAL_MS=60000 \
     confluentinc/dotnet_test_kafka:1
 
 
@@ -25,6 +27,8 @@ docker run -d \
     -e ADVERTISED_IP=$ADVERTISED_IP \
     -e BROKER_PORT=9093 \
     -e ZK_IP=$ADVERTISED_IP -e ZK_PORT=2181 \
+    -e LOG_SEGMENT_BYTES=100000000 \
+    -e LOG_RETENTION_CHECK_INTERVAL_MS=60000 \
     confluentinc/dotnet_test_kafka:1
 
 
@@ -39,4 +43,6 @@ docker run -d \
     -e ADVERTISED_IP=$ADVERTISED_IP \
     -e BROKER_PORT=9094 \
     -e ZK_IP=$ADVERTISED_IP -e ZK_PORT=2181 \
+    -e LOG_SEGMENT_BYTES=100000000 \
+    -e LOG_RETENTION_CHECK_INTERVAL_MS=60000 \
     confluentinc/dotnet_test_kafka:1
