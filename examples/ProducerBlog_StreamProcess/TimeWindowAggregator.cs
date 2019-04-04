@@ -5,42 +5,19 @@ using Confluent.Kafka;
 
 namespace ProducerBlog_StatelessProcessing
 {
-    public static class StatelessProcessor
+    public class Window
     {
-        static IProducer<string, string> producer;
-        static IConsumer<Null, string> consumer;
+        
+    }
+
+    public static class TimeWindowAggregator
+    {
+        static IProducer<DateTimeOffset, string> producer;
+        static IConsumer<string, string> consumer;
 
         static void Process(ConsumeResult<Null, string> consumeResult, string outputTopic)
         {
-            while (true)
-            {
-                try
-                {
-                    var logline = consumeResult.Value;
-                    var firstSpaceIndex = logline.IndexOf(' ');
-                    var ip = logline.Substring(0, firstSpaceIndex);
-                    var country = MockGeoLookup.GetCountryFromIP(ip);
-                    var anonymizedLogline = logline.Substring(firstSpaceIndex);
 
-                    producer.BeginProduce(
-                        outputTopic,
-                        new Message<string, string> { Key = country, Value = anonymizedLogline },
-                        dr =>
-                        {
-                            consumer.StoreOffset(consumeResult);
-                        });
-                }
-                catch (ProduceException<long, String> ex)
-                {
-                    if (ex.Error.Code == ErrorCode.Local_QueueFull)
-                    {
-                        producer.Poll(TimeSpan.FromSeconds(1));
-                    }
-                    continue;
-                }
-
-                break;
-            }
         }
 
         public static void Run(
@@ -51,11 +28,10 @@ namespace ProducerBlog_StatelessProcessing
         {
             var cConfig = new ConsumerConfig
             {
-                GroupId = "weblog-example",
+                GroupId = "country-aggregator-group",
                 BootstrapServers = brokerAddress,
                 EnableAutoCommit = true,
                 EnableAutoOffsetStore = false,
-                // Segfault if don't specify this.
                 AutoOffsetReset = AutoOffsetReset.Earliest
             };
 
@@ -67,14 +43,8 @@ namespace ProducerBlog_StatelessProcessing
                 DeliveryReportFields = "none"
             };
 
-            using (producer =
-                new ProducerBuilder<string, string>(pConfig)
-                    .SetErrorHandler((_, e) =>
-                    {
-                        // what to do.
-                    })
-                    .Build())
-            using (consumer = new ConsumerBuilder<Null, string>(cConfig).Build())
+            using (producer = new ProducerBuilder<DateTime, >(pConfig).Build())
+            using (consumer = new ConsumerBuilder<string, string>(cConfig).Build())
             {
                 consumer.Subscribe(weblogTopic);
 

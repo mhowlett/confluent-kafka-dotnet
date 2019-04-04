@@ -7,7 +7,7 @@ using Confluent.Kafka;
 
 namespace ProducerBlog_StatelessProcessing
 {
-    class WebLogLine
+    public class WebLogLine
     {
         public string IP { get; set; }
         public DateTime Date { get; set; }
@@ -60,17 +60,13 @@ namespace ProducerBlog_StatelessProcessing
                             new Message<Null, string> { Value = fk.Generate().ToString() }
                         );
 
-                        // what happens if cancellationToken.
                         await Task.Delay(rnd.Next(0, 5000), cancellationToken);
                     }
                 }
-                catch (OperationCanceledException ex)
-                {
-                    // ..
-                }
+                catch (OperationCanceledException ex) { }
             }
 
-            Console.WriteLine("WeblogSimulator.Generate terminated.");
+            Console.WriteLine("WeblogSimulator.Generate method terminated.");
         }
     }
 }
