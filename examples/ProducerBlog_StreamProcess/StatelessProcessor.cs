@@ -27,6 +27,7 @@ namespace ProducerBlog_StatelessProcessing
                         new Message<string, string> { Key = country, Value = anonymizedLogline },
                         dr =>
                         {
+                            // closure!
                             consumer.StoreOffset(consumeResult);
                         });
                 }
@@ -55,7 +56,6 @@ namespace ProducerBlog_StatelessProcessing
                 BootstrapServers = brokerAddress,
                 EnableAutoCommit = true,
                 EnableAutoOffsetStore = false,
-                // Segfault if don't specify this.
                 AutoOffsetReset = AutoOffsetReset.Earliest
             };
 
@@ -71,10 +71,12 @@ namespace ProducerBlog_StatelessProcessing
                 new ProducerBuilder<string, string>(pConfig)
                     .SetErrorHandler((_, e) =>
                     {
-                        // what to do.
+                        // idempotent fatal error.
                     })
                     .Build())
-            using (consumer = new ConsumerBuilder<Null, string>(cConfig).Build())
+            using (consumer =
+                new ConsumerBuilder<Null, string>(cConfig)
+                    .Build())
             {
                 consumer.Subscribe(weblogTopic);
 
@@ -95,7 +97,7 @@ namespace ProducerBlog_StatelessProcessing
                                 continue;
                             }
                             // what else?
-                            // talking to Frank, microservices 
+                            // microservices we want to fail fast and restart the microservice.
                         }
                     }
                 }

@@ -7,7 +7,9 @@ namespace ProducerBlog_StatelessProcessing
 {
     public class Window
     {
-        
+        public DateTime WindowStart { get; set; }
+
+        public int Count { get; set; }
     }
 
     public static class TimeWindowAggregator

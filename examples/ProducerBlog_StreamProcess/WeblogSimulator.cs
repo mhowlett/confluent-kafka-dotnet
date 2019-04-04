@@ -63,7 +63,7 @@ namespace ProducerBlog_StatelessProcessing
                         await Task.Delay(rnd.Next(0, 5000), cancellationToken);
                     }
                 }
-                catch (OperationCanceledException ex) { }
+                catch (OperationCanceledException) { }
             }
 
             Console.WriteLine("WeblogSimulator.Generate method terminated.");

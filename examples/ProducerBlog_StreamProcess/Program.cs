@@ -32,13 +32,13 @@ namespace ProducerBlog_StatelessProcessing
 
             // generate fake weblog data.
             _ = Task.Run(async () => await WeblogSimulator.Generate(brokerAddress, weblogTopic, cts.Token));
-            
+
             // (mock) geoip lookup, remove pii information (IP address), and repartition by country.
             _ = Task.Run(() => StatelessProcessor.Run(brokerAddress, weblogTopic, piiCompliantTopic, cts.Token));
 
             // count the number of hits per country in 1hr time windows.
             _ = Task.Run(() => TimeWindowAggregator.Run(brokerAddress, piiCompliantTopic, aggregatedTopic, cts.Token));
-            
+
             await Task.Delay(TimeSpan.MaxValue, cts.Token);
         }
     }
