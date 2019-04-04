@@ -70,7 +70,7 @@ namespace ProducerBlog_StatelessProcessing
                 }
             }
 
-            Console.WriteLine("WeblogSimulator thread exiting.");
+            Console.WriteLine("WeblogSimulator.Generate terminated.");
         }
     }
 }

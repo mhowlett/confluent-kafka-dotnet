@@ -7,27 +7,27 @@ namespace ProducerBlog_StatelessProcessing
 {
     public static class StatelessProcessor
     {
-        static IProducer<long, string> producer;
+        static IProducer<string, string> producer;
         static IConsumer<Null, string> consumer;
 
         static void Process(ConsumeResult<Null, string> consumeResult, string outputTopic)
         {
-            Console.WriteLine("1");
-            consumer.StoreOffset(consumeResult);
-            Console.WriteLine("2");
-
-            Console.WriteLine(consumeResult.Value);
             while (true)
             {
                 try
                 {
+                    var logline = consumeResult.Value;
+                    var firstSpaceIndex = logline.IndexOf(' ');
+                    var ip = logline.Substring(0, firstSpaceIndex);
+                    var country = MockGeoLookup.GetCountryFromIP(ip);
+                    var anonymizedLogline = logline.Substring(firstSpaceIndex);
+
                     producer.BeginProduce(
                         outputTopic,
-                        new Message<long, string> { Key=0, Value = consumeResult.Value },
+                        new Message<string, string> { Key = country, Value = anonymizedLogline },
                         dr =>
                         {
-                            Console.WriteLine("storing " + consumeResult.Offset);
-                            // consumer.StoreOffset(consumeResult);
+                            consumer.StoreOffset(consumeResult);
                         });
                 }
                 catch (ProduceException<long, String> ex)
@@ -56,8 +56,7 @@ namespace ProducerBlog_StatelessProcessing
                 EnableAutoCommit = true,
                 EnableAutoOffsetStore = false,
                 // Segfault if don't specify this.
-                AutoOffsetReset = AutoOffsetReset.Earliest,
-                ConsumeResultFields = "none"
+                AutoOffsetReset = AutoOffsetReset.Earliest
             };
 
             var pConfig = new ProducerConfig
@@ -68,7 +67,13 @@ namespace ProducerBlog_StatelessProcessing
                 DeliveryReportFields = "none"
             };
 
-            using (producer = new ProducerBuilder<long, string>(pConfig).Build())
+            using (producer =
+                new ProducerBuilder<string, string>(pConfig)
+                    .SetErrorHandler((_, e) =>
+                    {
+
+                    })
+                    .Build())
             using (consumer = new ConsumerBuilder<Null, string>(cConfig).Build())
             {
                 consumer.Subscribe(weblogTopic);
@@ -77,17 +82,25 @@ namespace ProducerBlog_StatelessProcessing
                 {
                     while (true)
                     {
-                        var cr = consumer.Consume(cancellationToken);
-                        Process(cr, outputTopic);
+                        try
+                        {
+                            var cr = consumer.Consume(cancellationToken);
+                            Process(cr, outputTopic);
+                        }
+                        catch (ConsumeException ex)
+                        {
+                            if (ex.Error.Code == ErrorCode.Local_ValueDeserialization)
+                            {
+                                // bad data.
+                                continue;
+                            }
+                        }
                     }
                 }
-                catch (OperationCanceledException ex)
-                {
-                    // 
-                }
+                catch (OperationCanceledException) { }
             }
 
-            Console.WriteLine("WeblogSimulator thread exiting.");
+            Console.WriteLine("WeblogSimulator.Process terminated.");
         }
     }
 }

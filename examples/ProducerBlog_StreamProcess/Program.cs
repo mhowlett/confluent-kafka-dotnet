@@ -14,6 +14,12 @@ namespace ProducerBlog_StatelessProcessing
         
         static void Main(string[] args)
         {
+            if (args.Length != 3)
+            {
+                Console.WriteLine("usage: .. <bootstrap servers> <weblog topic> <output topic>");
+                Environment.Exit(1);
+            }
+
             var brokerAddress = args[0];
             var weblogTopic = args[1];
             var outputTopic = args[2];
@@ -24,7 +30,7 @@ namespace ProducerBlog_StatelessProcessing
                 cts.Cancel();
             };
 
-//            Task.Run(async () => await WeblogSimulator.Generate(brokerAddress, weblogTopic, cts.Token));
+            Task.Run(async () => await WeblogSimulator.Generate(brokerAddress, weblogTopic, cts.Token));
 
             StatelessProcessor.Run(brokerAddress, weblogTopic, outputTopic, cts.Token);
         }
