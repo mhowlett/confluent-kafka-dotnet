@@ -12,24 +12,25 @@ namespace ProducerBlog_StatelessProcessing
             Offset = offset;
         }
 
-        public long Offset { get; set; }
+        public long Offset { get; private set; }
 
-        public Timestamp Window { get; set; }
+        public Timestamp Window { get; private set; }
 
-        public class Serializer : ISerializer<OffsetAndTimestamp>
-        {
-            public byte[] Serialize(OffsetAndTimestamp data, SerializationContext context)
+        public static SimpleSerializer<OffsetAndTimestamp> GetSerializer() =>
+            data => 
             {
-                throw new System.NotImplementedException();
-            }
-        }
+                var bs1 = SimpleSerializers.Int64(data.Offset);
+                var bs2 = SimpleSerializers.Int64(data.Window.UnixTimestampMs);
+                var result = new byte[bs1.Length + bs2.Length];
+                bs1.CopyTo(result, 0);
+                bs1.CopyTo(result, bs1.Length);
+                return result;
+            };
 
-        public class Deserializer : IDeserializer<OffsetAndTimestamp>
-        {
-            public OffsetAndTimestamp Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
-            {
-                throw new NotImplementedException();
-            }
-        }
+        public static Deserializer<OffsetAndTimestamp> GetDeserializer() =>
+            (data, isNull) => 
+                new OffsetAndTimestamp(
+                    Deserializers.Int64(data.Slice(0, sizeof(long)), false), 
+                    new Timestamp(Deserializers.Int64(data.Slice(sizeof(long), sizeof(long)), false), TimestampType.NotAvailable));
     }
 }

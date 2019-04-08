@@ -61,7 +61,7 @@ namespace ProducerBlog_StatelessProcessing
             var weblogTopic = args[1];
             var piiCompliantTopic = args[2];
             var countryCountTopic = args[3];
-            var windowOffsetTopic = args[4];
+            var commitTopic = args[4];
 
             CancellationTokenSource cts = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => {
@@ -69,7 +69,7 @@ namespace ProducerBlog_StatelessProcessing
                 cts.Cancel();
             };
 
-            await RecreateTopicsAsync(brokerAddress, weblogTopic, piiCompliantTopic, countryCountTopic, windowOffsetTopic);
+            await RecreateTopicsAsync(brokerAddress, weblogTopic, piiCompliantTopic, countryCountTopic, commitTopic);
 
             // In a production system, each task (thread) below would correspond
             // to a separate process.
@@ -83,8 +83,18 @@ namespace ProducerBlog_StatelessProcessing
             // microservices.Add(Task.Run(() => StatelessProcessor.Run(brokerAddress, weblogTopic, piiCompliantTopic, 2, cts.Token)));
 
             // count the number of hits per country in 1hr time windows.
-            microservices.Add(Task.Run(() => TimeWindowAggregator.Run(brokerAddress, piiCompliantTopic, countryCountTopic, windowOffsetTopic, 1, cts.Token)));
-            // microservices.Add(Task.Run(() => TimeWindowAggregator.Run(brokerAddress, piiCompliantTopic, aggregatedTopic, 2, cts.Token)));
+            var countAggregator = new WindowAggregator<string, string, int>(
+                brokerAddress, "country-counter", 
+                piiCompliantTopic, countryCountTopic, commitTopic,
+                Deserializers.Utf8, Deserializers.Utf8,
+                SimpleSerializers.Utf8, SimpleSerializers.Int32,
+                TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5),
+                1);
+
+            Func<List<Message<string, string>>, Timestamp, TimeSpan, int> messageCounter =
+                (messages, windowStart, windowLenth) => messages.Count;
+
+            microservices.Add(Task.Run(() => countAggregator.Run(messageCounter, cts.Token)));
 
             var result = await Task.WhenAny(microservices);
 

@@ -28,56 +28,34 @@ namespace ProducerBlog_StatelessProcessing
             public int Partition { get; private set; }
             public T Data { get; private set; }
 
-            class Serializer : ISerializer<PartitionAndData>
-            {
-                ISerializer<T> dataSerializer;
-                public Serializer(ISerializer<T> dataSerializer)
+            public static SimpleSerializer<PartitionAndData> GetSerializer(SimpleSerializer<T> dataSerializer) =>
+                data =>
                 {
-                    this.dataSerializer = dataSerializer;
-                }
-
-                public byte[] Serialize(PartitionAndData data, SerializationContext context)
-                {
-                    var partitionBytes = Serializers.Int32.Serialize(data.Partition, SerializationContext.Empty);
-                    var dataBytes = dataSerializer.Serialize(data.Data, SerializationContext.Empty);
+                    var partitionBytes = SimpleSerializers.Int32(data.Partition);
+                    var dataBytes = dataSerializer(data.Data);
 
                     var result = new byte[partitionBytes.Length + dataBytes.Length];
                     Array.Copy(partitionBytes, result, partitionBytes.Length);
                     Array.Copy(dataBytes, 0, result, partitionBytes.Length, dataBytes.Length);
                     return result;
-                }
-            }
+                };
 
-            public static ISerializer<PartitionAndData> CreateSerializer(ISerializer<T> dataSerializer)
-                => new Serializer(dataSerializer);
-
-            class Deserializer : IDeserializer<PartitionAndData>
-            {
-                IDeserializer<T> dataDeserializer;
-                public Deserializer(IDeserializer<T> dataDeserializer)
-                {
-                    this.dataDeserializer = dataDeserializer;
-                }
-
-                public PartitionAndData Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
+            public static Deserializer<PartitionAndData> GetDeserializer(Deserializer<T> dataDeserializer) =>
+                (data, isNull) =>
                 {
                     return new PartitionAndData(
-                        partition: Deserializers.Int32.Deserialize(data.Slice(0, sizeof(long)), false, SerializationContext.Empty),
-                        data: dataDeserializer.Deserialize(data.Slice(sizeof(long)), false, SerializationContext.Empty)
+                        partition: Deserializers.Int32(data.Slice(0, sizeof(long)), false),
+                        data: dataDeserializer(data.Slice(sizeof(long)), false)
                     );
-                }
-            }
-
-            public static IDeserializer<PartitionAndData> CreateDeserializer(IDeserializer<T> dataDeserializer)
-                => new Deserializer(dataDeserializer);
+                };
         }
 
 
         public CommitManager(
             string brokerAddress,
             string commitTopic,
-            ISerializer<T> dataSerializer,
-            IDeserializer<T> dataDeserializer)
+            SimpleSerializer<T> dataSerializer,
+            Deserializer<T> dataDeserializer)
         {
             this.commitTopic = commitTopic;
 
@@ -99,24 +77,24 @@ namespace ProducerBlog_StatelessProcessing
             };
 
             commitProducer = new ProducerBuilder<Null, PartitionAndData>(pConfig)
-                .SetValueSerializer(PartitionAndData.CreateSerializer(dataSerializer))
+                .SetValueSerializer(PartitionAndData.GetSerializer(dataSerializer))
                 .SetErrorHandler((_, e) =>
                 {
-                    // ?
+                    // todo
                 })
                 .Build();
 
             commitConsumer = new ConsumerBuilder<Null, PartitionAndData>(cConfig)
-                .SetValueDeserializer(PartitionAndData.CreateDeserializer(dataDeserializer))
+                .SetValueDeserializer(PartitionAndData.GetDeserializer(dataDeserializer))
                 .SetErrorHandler((_, e) =>
                 {
-                    // ?
+                    // todo
                 })
                 .Build();
 
         }
 
-        public async Task MaybeCreateTopicAsync()
+        public async Task MaybeCreateCommitTopicAsync()
         {
             var config = new AdminClientConfig
             {

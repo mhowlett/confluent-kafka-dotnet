@@ -19,62 +19,30 @@ namespace ProducerBlog_StatelessProcessing
 
         public TValue Value { get; private set; }
 
-        public static ISerializer<WindowResult<TKey, TValue>> CreateSerializer(
-            ISerializer<TKey> keySerializer,
-            ISerializer<TValue> valueSerializer)
-                => new Serializer(keySerializer, valueSerializer);
-
-        public static IDeserializer<WindowResult<TKey, TValue>> CreateDeserializer(
-            IDeserializer<TKey> keyDeserializer,
-            IDeserializer<TValue> valueDeserializer)
-                => new Deserializer(keyDeserializer, valueDeserializer);
-
-        public class Serializer : ISerializer<WindowResult<TKey, TValue>>
-        {
-            ISerializer<TKey> keySerializer;
-            ISerializer<TValue> valueSerializer;
-
-            public Serializer(ISerializer<TKey> keySerializer, ISerializer<TValue> valueSerializer)
+        public static SimpleSerializer<WindowResult<TKey, TValue>> CreateSerializer(SimpleSerializer<TKey> keySerializer, SimpleSerializer<TValue> valueSerializer) =>
+            data =>
             {
-                this.keySerializer = keySerializer;
-                this.valueSerializer = valueSerializer;
-            }
-
-            public byte[] Serialize(WindowResult<TKey, TValue> data, SerializationContext context)
-            {
-                var bs1 = Serializers.Int64.Serialize(data.WindowStart.UnixTimestampMs, SerializationContext.Empty);
-                var bs3 = keySerializer.Serialize(data.Key, SerializationContext.Empty);
-                var bs2 = Serializers.Int32.Serialize(bs3.Length, SerializationContext.Empty);
-                var bs4 = valueSerializer.Serialize(data.Value, SerializationContext.Empty);
+                var bs1 = SimpleSerializers.Int64(data.WindowStart.UnixTimestampMs);
+                var bs3 = keySerializer(data.Key);
+                var bs2 = SimpleSerializers.Int32(bs3.Length);
+                var bs4 = valueSerializer(data.Value);
                 var result = new byte[bs1.Length + bs2.Length + bs3.Length + bs4.Length];
                 bs1.CopyTo(result, 0);
                 bs2.CopyTo(result, bs1.Length);
                 bs3.CopyTo(result, bs1.Length + bs2.Length);
                 bs4.CopyTo(result, bs1.Length + bs2.Length + bs3.Length);
                 return result;
-            }
-        }
+            };
 
-        public class Deserializer : IDeserializer<WindowResult<TKey, TValue>>
-        {
-            IDeserializer<TKey> keyDeserializer;
-            IDeserializer<TValue> valueDeserializer;
-
-            public Deserializer(IDeserializer<TKey> keyDeserializer, IDeserializer<TValue> valueDeserializer)
+        public static Deserializer<WindowResult<TKey, TValue>> CreateDeserializer(Deserializer<TKey> keyDeserializer, Deserializer<TValue> valueDeserializer) =>
+            (data, isNull) => 
             {
-                this.keyDeserializer = keyDeserializer;
-                this.valueDeserializer = valueDeserializer;
-            }
-
-            public WindowResult<TKey, TValue> Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
-            {
-                var timestamp = Deserializers.Int64.Deserialize(data.Slice(0, sizeof(long)), false, SerializationContext.Empty);
-                var keyLen = Deserializers.Int32.Deserialize(data.Slice(sizeof(long), sizeof(int)), false, SerializationContext.Empty);
-                var key = keyDeserializer.Deserialize(data.Slice(sizeof(long) + sizeof(int)), false, SerializationContext.Empty);
-                var val = valueDeserializer.Deserialize(data.Slice(sizeof(long) + 2*sizeof(int) + keyLen), false, SerializationContext.Empty);
+                var timestamp = Deserializers.Int64(data.Slice(0, sizeof(long)), false);
+                var keyLen = Deserializers.Int32(data.Slice(sizeof(long), sizeof(int)), false);
+                var key = keyDeserializer(data.Slice(sizeof(long) + sizeof(int)), false);
+                var val = valueDeserializer(data.Slice(sizeof(long) + 2*sizeof(int) + keyLen), false);
                 return new WindowResult<TKey, TValue>(new Timestamp(timestamp, TimestampType.NotAvailable), key, val);
-            }
-        }
+            };
 
     }
 }
