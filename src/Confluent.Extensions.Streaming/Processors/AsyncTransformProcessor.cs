@@ -321,6 +321,11 @@ namespace Confluent.Extensions.Streaming.Processors
                 });
             }
 
+            cBuilder.SetPartitionsAssignedHandler((c, e) =>
+            {
+                PartitionState.Clear();
+            });
+
             cBuilder.SetErrorHandler((c, e) =>
             {
                 // TODO: How can I make an error event happen?
