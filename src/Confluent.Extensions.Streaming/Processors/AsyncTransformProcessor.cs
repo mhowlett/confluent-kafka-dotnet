@@ -51,12 +51,14 @@ namespace Confluent.Extensions.Streaming.Processors
 
         public string DebugContext { get; set; } = null;
 
-        public OutputOrderPolicy OutputOrderPolicy { get; set; }
+        public OutputOrderPolicy OutputOrderPolicy { get; }
+
+        public int MaxPollIntervalMs { get; } = 300000;
 
         private Semaphore funcExecSemaphore;
 
 
-        class PartitionState
+        class ExecutionState
         {
             private TaskAndOffset[] executingFunctions;
             private object funcExecLockObj = new object();
@@ -66,7 +68,7 @@ namespace Confluent.Extensions.Streaming.Processors
 
             private AsyncTransformProcessor<TInKey, TInValue, TOutKey, TOutValue> processor;
 
-            public PartitionState(AsyncTransformProcessor<TInKey, TInValue, TOutKey, TOutValue> processor)
+            public ExecutionState(AsyncTransformProcessor<TInKey, TInValue, TOutKey, TOutValue> processor)
             {
                 this.processor = processor;
                 executingFunctions = new TaskAndOffset[processor.MaxOutstanding];
@@ -132,6 +134,22 @@ namespace Confluent.Extensions.Streaming.Processors
                 return min;
             }
 
+
+            public static void HandleConsumedMessage(
+                AsyncTransformProcessor<TInKey, TInValue, TOutKey, TOutValue> processor,
+                ConsumeResult<TInKey, TInValue> cr,
+                IConsumer<TInKey, TInValue> consumer,
+                IProducer<TOutKey, TOutValue> producer,
+                Semaphore funcExecSemaphore,
+                CancellationTokenSource errorCts
+            )
+            {
+                if (!partitionState.ContainsKey(cr.TopicPartition))
+                {
+                    partitionState.Add(cr.TopicPartition, new ExecutionState(processor));
+                }
+                partitionState[cr.TopicPartition].HandleConsumedMessage(cr, consumer, producer, funcExecSemaphore, errorCts);   
+            }
 
             public void HandleConsumedMessage(
                 ConsumeResult<TInKey, TInValue> cr,
@@ -282,6 +300,8 @@ namespace Confluent.Extensions.Streaming.Processors
         {
             funcExecSemaphore = new Semaphore(MaxOutstanding, MaxOutstanding);
 
+            var perPartitionState = new Dictionary<TopicPartition, ExecutionState>();
+
             CancellationTokenSource errorCts = new CancellationTokenSource();
             CancellationTokenSource compositeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, errorCts.Token);
             CancellationToken compositeCancellationToken = compositeCts.Token;
@@ -295,7 +315,8 @@ namespace Confluent.Extensions.Streaming.Processors
                 BootstrapServers = BootstrapServers,
                 EnableAutoCommit = true,
                 EnableAutoOffsetStore = false,
-                AutoOffsetReset = AutoOffsetReset.Latest
+                AutoOffsetReset = AutoOffsetReset.Latest,
+                MaxPollIntervalMs = MaxPollIntervalMs
             };
             if (DebugContext != null)
             {
@@ -323,7 +344,7 @@ namespace Confluent.Extensions.Streaming.Processors
 
             cBuilder.SetPartitionsAssignedHandler((c, e) =>
             {
-                PartitionState.Clear();
+                // PerPartitionState.Clear();
             });
 
             cBuilder.SetErrorHandler((c, e) =>
@@ -421,7 +442,6 @@ namespace Confluent.Extensions.Streaming.Processors
                 }
             });
 
-            var partitionState = new Dictionary<TopicPartition, PartitionState>();
 
             using (var producer = pBuilder.Build())
             using (var consumer = cBuilder.Build())
@@ -439,7 +459,8 @@ namespace Confluent.Extensions.Streaming.Processors
                         }
                         catch (ConsumeException ex)
                         {
-                            if (ex.Error.Code == ErrorCode.Local_ValueDeserialization)
+                            if (ex.Error.Code == ErrorCode.Local_ValueDeserialization ||
+                                ex.Error.Code == ErrorCode.Local_KeyDeserialization)
                             {
                                 // For an in-depth discussion of what to do in the event of deserialization errors, refer to:
                                 // https://www.confluent.io/blog/kafka-connect-deep-dive-error-handling-dead-letter-queues
@@ -449,23 +470,25 @@ namespace Confluent.Extensions.Streaming.Processors
                                     continue;
                                 }
 
-                                // Logger.Log(error);
-                                errorCts.Cancel(); // no error tolerance.
+                                // Log then:
+                                break; // no error tolerance.
                             }
 
-                            // TODO: what else can go wrong here, and what to do about it?
-                            //  - group coordinator error?
-                            //  - operationally I think this should fail fast and have a supervisor restart the microservice.
+                            // possible: ErrorCode.Local_UnknownGroup, if rk->rkcg not set.
+                            //    - when can that happen?
+                            // - Authorization failures. (see java docs)
+                            // - Invalid group id.
+                            // - other future errors.
+                            
+                            // - session timeout. 
+                            //   - if this occurs, I assume there is no revoke?
+                            //   - will consumer try to re-join group?
 
-                            Thread.Sleep(TimeSpan.FromSeconds(10)); // ?? if not fail fast, do we want to sleep and why?
-                            continue;
+                            // Log, then:
+                            break;
                         }
 
-                        if (!partitionState.ContainsKey(cr.TopicPartition))
-                        {
-                            partitionState.Add(cr.TopicPartition, new PartitionState(this));
-                        }
-                        partitionState[cr.TopicPartition].HandleConsumedMessage(cr, consumer, producer, funcExecSemaphore, errorCts);
+                        ExecutionState.HandleConsumedMessage(this, cr, consumer, producer, funcExecSemaphore, errorCts);
 
                         aMessageHasBeenProcessed = true;
                     }
