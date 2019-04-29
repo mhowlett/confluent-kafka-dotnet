@@ -1,39 +1,27 @@
-# Async Stream Processing in C#/.NET
+# Stateless Stream Processing in C#/.NET
 
-The recent v1.0 release of Confluent's Kafka clients is big news for .NET developers. The .NET API has
-had a major overhaul, making it more idiomatic, extensible and easier to use. In this blog post,
-we're going to walk through some of the new features of the library in the context of implementing
-a lightweight abstraction for a common type of stream processing application - executing async
-operations (for example HTTP requests) in response to events in a Kafka topic.
+The recent v1.0 release of Confluent's Kafka clients is big news for .NET developers.
+The .NET API has had a major overhaul, making it more idiomatic, extensible and easier
+to use. In this blog post, we're going to walk through some of the new features of the
+library in the context of implementing a simple-to-use abstraction for stateless stream processing.
 
+The goal of this blog post is to provide a reference implementation of a non-trivial use of the .NET Client - something you can look to when implementing your own programs. Although we'll be using the .NET client, a lot of the ideas in this article are directly transferrable to other clients that build on the librdkafka C library, including Confluent's [Python](...) and [Golang](...) clients. All code discussed in this article can be found in the .NET client github repo, including the [stream processor](...) itself and an [example](...) of it's use.
 
-The async processor we're going to build allows you to:
-
-- Maintain input order when producing results, even though tasks may take different times to complete.
-- Produce output events in response to all, some or none of the input events (i.e. act as a filter).
-- Rate limit the number of operations outstanding at any time.
-- Scale horizontally with high performance (this *is* Kafka, afterall!)
-
-A goal of this blog post is to provide a reference implementation of a non-trivial use of the .NET Client - something you can look to when implementing your own non-toy applications. Although we'll be using the .NET client, a lot of the ideas in this article are directly transferrable to other clients that build on the librdkafka C library, including Confluent's [Python](...) and [Golang](...) clients. All code discussed in this article can be found in the .NET client github repo, including the [async stream processor](...) itself and an [example](...) of it's use.
-
-For your convenience, we've also created a [nuget](...) package - `Confluent.Experimental.Streaming` - which provides the async processor class. As the name 'experimental' suggests, this is not intended to be taken as an indication of the future direction of any stream processing library we may make for .NET, and it's also not something that we currently support. [note: i don't agree with this, i think we should release it and support it].
-
-With that disclaimer out of the way, let's take a look at how to use what we're going to make. First, you specify your processing job:
+Here's how to use the 
 
 ```
-var transformProcessor = new AsyncTransformProcessor<Null, string, Null, string>
+var transformProcessor = new Processor<Null, string, string, string>
 {
     Name = "processor-name",
     BootstrapServers = brokerAddress,
     InputTopic = "input-topic-name",
     OutputTopic = "output-topic-name",
-    OutputOrderPolicy = OutputOrderPolicy.InputOrder,
     ConsumeErrorTolerance = ErrorTolerance.All,
-    MaxExecutingTasks = 100,
-    Function = async (m) => 
+    Function = (weblogline) => 
     {
-        return new Message<Null, string> { Value = await myHttpRequest(...) };
-        // return null to indicate no output.
+        var country = geoLookup(extractIp(m.Value));
+        var piiCompliant = removeIp(m.Value);
+        return new Message<string, string> { Key = country, Value = piiCompliant };
     }
 };
 ```
@@ -44,7 +32,7 @@ And then start it:
 transformProcessor.Start(instanceId, cancellationToken);
 ```
 
-And that's it! To scale your processing, simply run multiple instances of your program and let Kafka consumer groups do their magic. More detailed information on using `AsyncTransformProcessor` is available in the example's [readme.md](...). 
+And that's it! To scale your processing, simply run multiple instances of your program and let Kafka consumer groups do their magic. More detailed information on using the `Processor` is available in the example's [readme.md](...). 
 
 For the remainder of this blog post, we're going to dive into the
 details of it's implementation.
@@ -64,14 +52,13 @@ var cConfig = new ConsumerConfig
     GroupId = $"{Name}-group",
     EnableAutoOffsetStore = false,
     AutoOffsetReset = AutoOffsetReset.Latest,
-    MaxPollIntervalMs = MaxPollIntervalMs,
     Debug = DebugContext
 };
 ```
 
 A few of these are worth calling out:
 
-- **EnableAutoOffsetStore**: Setting this property to `false` gives you to control over when an offset is eligible to be committed when using librdkafka's auto-offset-commit capability. This pattern is usually the best way to commit offsets, and we'll discuss why in more detail later.
+- **EnableAutoOffsetStore**: Setting this property to `false` allows you to control when an offset is eligible to be committed via librdkafka's auto-offset-commit capability. This pattern is usually the best way to commit offsets, and we'll discuss why in more detail later.
 
 - **Debug**: Librdkafka has a `log_level` configuration property, but in practice this isn't very useful and so to avoid confusion, we don't expose it in the .NET strongly typed config classes. By contrast, the `debug` property is very useful. If you are experiencing problems with the client, you can use this property to enable verbose logging in contexts relevant to your problem, or simply set it to `all`. For more information, refer to the librdkafka [documentation](https://github.com/edenhill/librdkafka/blob/master/INTRODUCTION.md#debug-contexts).
 

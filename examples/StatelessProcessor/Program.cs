@@ -5,8 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
-using Confluent.Extensions.Streaming.Mock;
-using Confluent.Extensions.Streaming.Processors;
 using Bogus;
 using Bogus.DataSets;
 

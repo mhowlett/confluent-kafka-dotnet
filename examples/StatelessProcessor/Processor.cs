@@ -160,7 +160,7 @@ namespace Confluent.Examples.StatelessProcessor
         public void Start(string instanceId, CancellationToken cancellationToken)
         {
             CancellationTokenSource errorCts = new CancellationTokenSource();
-            
+            CancellationTokenSource compositeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, errorCts.Token);
 
             IConsumer<TInKey, TInValue> consumer = null;
             IProducer<TOutKey, TOutValue> producer = null;
@@ -178,7 +178,7 @@ namespace Confluent.Examples.StatelessProcessor
                     producer = constructProducer(instanceId, errorCts);
                 }
 
-                while (true)
+                while (!compositeCts.IsCancellationRequested)
                 {
                     Message<TInKey, TInValue> message = null;
 
@@ -187,7 +187,7 @@ namespace Confluent.Examples.StatelessProcessor
                         try
                         {
                             // callback handler exceptions don't propagate.
-                            message = consumer.Consume(compositeCancellationToken).Message;
+                            message = consumer.Consume(compositeCts.Token).Message;
                         }
                         catch (ConsumeException ex)
                         {
