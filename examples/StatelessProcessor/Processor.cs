@@ -54,7 +54,7 @@ namespace Confluent.Examples.StatelessProcessor
                 Debug = DebugContext // can set to null
             };
 
-            var cBuilder = new ConsumerBuilder<TInKey, TInValue>(cConfig)
+                var cBuilder = new ConsumerBuilder<TInKey, TInValue>(cConfig)
                 .SetKeyDeserializer(InKeyDeserializer)
                 .SetValueDeserializer(InValueDeserializer)
                 .SetLogHandler((_, m) =>
@@ -62,10 +62,6 @@ namespace Confluent.Examples.StatelessProcessor
                     // If there is an error callback, will any events ever arrive here?
                     // can we change librdkafka to always log errors to here?
                     Logger(m);
-                })
-                .SetPartitionsAssignedHandler((c, e) =>
-                {
-                    // PerPartitionState.Clear();
                 })
                 .SetErrorHandler((c, e) =>
                 {

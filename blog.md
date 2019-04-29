@@ -3,24 +3,24 @@
 The recent v1.0 release of Confluent's Kafka clients is big news for .NET developers.
 The .NET API has had a major overhaul, making it more idiomatic, extensible and easier
 to use. In this blog post, we're going to walk through some of the new features of the
-library in the context of implementing a simple-to-use abstraction for stateless stream processing.
+library in the context of implementing a high level abstraction for stateless stream processing.
 
-The goal of this blog post is to provide a reference implementation of a non-trivial use of the .NET Client - something you can look to when implementing your own programs. Although we'll be using the .NET client, a lot of the ideas in this article are directly transferrable to other clients that build on the librdkafka C library, including Confluent's [Python](...) and [Golang](...) clients. All code discussed in this article can be found in the .NET client github repo, including the [stream processor](...) itself and an [example](...) of it's use.
+One of the goals of this blog post is to provide a reference implementation of the use of the .NET Client - something you can look to when implementing your own programs. Although we'll be using the .NET client, a lot of the ideas in this article are directly transferrable to other clients that build on the librdkafka C library, including Confluent's [Python](...) and [Golang](...) clients. All code discussed in this article can be found in the .NET client github repo, including the [stream processor](...) itself and an [example](...) of it's use.
 
-Here's how to use the 
+To use our processor class, just set a few high level configuration properties (including your processing function):
 
 ```
 var transformProcessor = new Processor<Null, string, string, string>
 {
-    Name = "processor-name",
+    Name = "weblog-processor",
     BootstrapServers = brokerAddress,
-    InputTopic = "input-topic-name",
-    OutputTopic = "output-topic-name",
+    InputTopic = "weblog-topic",
+    OutputTopic = "pii-compliant-weblog",
     ConsumeErrorTolerance = ErrorTolerance.All,
-    Function = (weblogline) => 
+    Function = (inMessage) => 
     {
-        var country = geoLookup(extractIp(m.Value));
-        var piiCompliant = removeIp(m.Value);
+        var country = geoLookup(extractIp(inMessage.Value));
+        var piiCompliant = removeIp(inMessage.Value);
         return new Message<string, string> { Key = country, Value = piiCompliant };
     }
 };
@@ -32,15 +32,16 @@ And then start it:
 transformProcessor.Start(instanceId, cancellationToken);
 ```
 
-And that's it! To scale your processing, simply run multiple instances of your program and let Kafka consumer groups do their magic. More detailed information on using the `Processor` is available in the example's [readme.md](...). 
+And that's it!
 
-For the remainder of this blog post, we're going to dive into the
-details of it's implementation.
+To scale your processing, simply run multiple instances of your program (specifying different instanceId's) and let Kafka consumer groups do their magic. More in depth information on how to use the `Processor` class is available in the example's [readme.md](...).
+
+For the remainder of this blog post is concerned with it's implementation. Code [here](...).
 
 
 ## Setting up
 
-A nice addition to the 1.0 API are the strongly typed configuration classes. These classes are actually just convenience wrappers around the string/string key value pairs expected by librdkafka - which you can still use if you want. However, the specialized configuration classes give you edit / compile time type validation, intellisense API documentation, and they're directly compatible with the ASP .NET `IConfiguration` `Option` pattern (but that's a story for a future blog post!).
+A nice addition to the 1.0 API are the strongly typed configuration classes. These classes are actually just convenience wrappers around the string/string configuration settings [expected by librdkafka](...) - which you can still use if you want. However, the specialized configuration classes give you edit / compile time type validation, API documentation via intellisense, and they're directly compatible with the ASP .NET `IConfiguration` `Option` pattern (but that's a story for a future blog post!).
 
 There are many configuration options, but for the most part, the defaults are probably what you want. Here's the complete set of parameters we're using for the consumer:
 
@@ -56,14 +57,13 @@ var cConfig = new ConsumerConfig
 };
 ```
 
-A few of these are worth calling out:
+If you are new to how consumer groups work, go to [blog post](...). A few of these are worth calling out here:
 
-- **EnableAutoOffsetStore**: Setting this property to `false` allows you to control when an offset is eligible to be committed via librdkafka's auto-offset-commit capability. This pattern is usually the best way to commit offsets, and we'll discuss why in more detail later.
+- **AutoOffsetReset**: This setting defines the offset to start consuming from *if there are no offsets already committed*. This is a common point of confusion. If there are already offsets committe,d this is ignored.
+
+- **EnableAutoOffsetStore**: Setting this property to `false` allows you to control when an offset is eligible to be committed via librdkafka's auto-offset-commit capability. This pattern is usually the best way to achieve at least once semantics, and we'll discuss why later in this blog post.
 
 - **Debug**: Librdkafka has a `log_level` configuration property, but in practice this isn't very useful and so to avoid confusion, we don't expose it in the .NET strongly typed config classes. By contrast, the `debug` property is very useful. If you are experiencing problems with the client, you can use this property to enable verbose logging in contexts relevant to your problem, or simply set it to `all`. For more information, refer to the librdkafka [documentation](https://github.com/edenhill/librdkafka/blob/master/INTRODUCTION.md#debug-contexts).
-
-- **MaxPollIntervalMs**: This property (new in 1.0) specifies the maximum time between calls to a consumer's `Consume` method before it is assumed to have failed and thrown out of the consumer group. Since the function executed by our processor is user defined, this property is also exposed to allow for arbitrarily long running functions. If you're interested in the finer details of consumer liveness works, take a look at [KIP-62](https://cwiki.apache.org/confluence/display/KAFKA/KIP-62%3A+Allow+consumer+to+send+heartbeats+from+a+background+thread).
-
 
 Producer:
 
@@ -74,10 +74,22 @@ Producer:
 Having specified your configuration, the next stage of client setup is to pass this into the constructor of a client builder class. The builder classes allow you to optionally specify one of a number of different event handlers, as well as serializers or deserializers (collectively known as '*serdes*'). This is done via 'Set' methods which can be chained together. e.g.:
 
 ```
-builder
+var cBuilder = new ConsumerBuilder<TInKey, TInValue>(cConfig)
+    .SetKeyDeserializer(InKeyDeserializer)
+    .SetValueDeserializer(InValueDeserializer)
+    .SetLogHandler((_, m) =>
+    {
+        ...
+    })
+    .SetErrorHandler((c, e) =>
+    {
+        ...
+    });
 ```
 
-In our async processor class, we allow the log handler specified, and pass it through to the producer and consumer builder classes if so. If no log handler is specified, output will be written to stderr by default (note: logging will be very sparse unless you specify a debug context). If you specify your own log handler, be aware that it must be threadsafe.
+Our processor class exposes properties that allow 
+
+In our processor class, we allow the log handler specified, and pass it through to the producer and consumer builder classes if so. If no log handler is specified, output will be written to stderr by default (note: logging will be very sparse unless you specify a debug context). If you specify your own log handler, be aware that it must be threadsafe.
 
 Liewise, we allow deserializers .. and serializer .. however, alos pased through.
 
@@ -220,3 +232,5 @@ assuming confiured everything correctly.
 
 Synchronous operations are the enemy of high throughput processing. 
 Synchronous operations are the enemy of high throughput processing. 
+
+- **MaxPollIntervalMs**: This property (new in 1.0) specifies the maximum time between calls to a consumer's `Consume` method before it is assumed to have failed and thrown out of the consumer group. Since the function executed by our processor is user defined, this property is also exposed to allow for arbitrarily long running functions. If you're interested in the finer details of consumer liveness works, take a look at [KIP-62](https://cwiki.apache.org/confluence/display/KAFKA/KIP-62%3A+Allow+consumer+to+send+heartbeats+from+a+background+thread).

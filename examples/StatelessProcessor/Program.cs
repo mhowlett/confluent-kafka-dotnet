@@ -71,7 +71,7 @@ namespace Confluent.Examples.StatelessProcessor
             {
                 BootstrapServers = brokerAddress,
                 OutputTopic = simulatedWeblogTopic,
-                Function = () =>
+                Function = (_) =>
                 {
                     Thread.Sleep(r.Next(1000));
                     return new Message<Null, string> { Value = WebLogLine.GenerateFake() };
