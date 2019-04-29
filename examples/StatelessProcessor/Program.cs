@@ -11,7 +11,7 @@ using Bogus;
 using Bogus.DataSets;
 
 
-namespace Confluent.Extensions.Streaming
+namespace Confluent.Examples.StatelessProcessor
 {
     class Program
     {
@@ -69,7 +69,7 @@ namespace Confluent.Extensions.Streaming
 
             // 1. A processor that generates some fake weblog data.
             Random r = new Random();
-            var fakeDataSourceProcessor = new GeneratorProcessor<Null, string>
+            var fakeDataSourceProcessor = new Processor<Null, Null, Null, string>
             {
                 BootstrapServers = brokerAddress,
                 OutputTopic = simulatedWeblogTopic,
@@ -82,7 +82,7 @@ namespace Confluent.Extensions.Streaming
 
             // 2. A processor that does a (mock) geoip lookup, removes pii information
             //    (IP address), and repartitions by country.
-            var transformProcessor = new AsyncTransformProcessor<Null, string, string, string>
+            var transformProcessor = new Processor<Null, string, string, string>
             {
                 Name = "geo-lookup-processor",
                 BootstrapServers = brokerAddress,
@@ -101,7 +101,7 @@ namespace Confluent.Extensions.Streaming
                             throw new FormatException("unexpected logline format");
                         }
                         var ip = logline.Substring(0, firstSpaceIndex);
-                        var country = await MockGeoLookup.GetCountryFromIPAsync(ip);
+                        var country = MockGeoLookup.GetCountryFromIPAsync(ip);
                         var loglineWithoutIP = logline.Substring(firstSpaceIndex+1);
                         var dateStart = loglineWithoutIP.IndexOf('[');
                         var dateEnd = loglineWithoutIP.IndexOf(']');

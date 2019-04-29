@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 
 
-namespace Confluent.Extensions.Streaming.Mock
+namespace Confluent.Examples.StatelessProcessor
 {
     public static class MockGeoLookup
     {
@@ -12,9 +12,8 @@ namespace Confluent.Extensions.Streaming.Mock
 
         private static Random random = new Random();
 
-        public async static Task<string> GetCountryFromIPAsync(string ip)
+        public static string GetCountryFromIPAsync(string ip)
         {
-            await Task.Delay(random.Next(100));
             return CountriesOrderedByPopulation[r.Next(0, CountriesOrderedByPopulation.Length)];
         }
     }

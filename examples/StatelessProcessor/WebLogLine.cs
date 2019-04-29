@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Bogus;
 
 
-namespace Confluent.Extensions.Streaming.Mock
+namespace Confluent.Examples.StatelessProcessor
 {
     public class WebLogLine
     {

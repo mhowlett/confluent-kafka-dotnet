@@ -51,9 +51,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Protobuf", "examples\Protob
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Confluent.Kafka.SyncOverAsync", "test\Confluent.Kafka.SyncOverAsync\Confluent.Kafka.SyncOverAsync.csproj", "{07E3455B-9CDF-4124-854E-8AC9B8950B1A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncStreaming", "examples\AsyncStreaming\AsyncStreaming.csproj", "{6DBFC8BF-74DE-4829-BEF6-F0B183E6C020}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Confluent.Extensions.Streaming", "src\Confluent.Extensions.Streaming\Confluent.Extensions.Streaming.csproj", "{FA692398-B08B-48BA-BDE1-24883D191D48}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StatelessProcessor", "examples\StatelessProcessor\StatelessProcessor.csproj", "{6DBFC8BF-74DE-4829-BEF6-F0B183E6C020}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -332,18 +330,6 @@ Global
 		{6DBFC8BF-74DE-4829-BEF6-F0B183E6C020}.Release|x64.Build.0 = Release|Any CPU
 		{6DBFC8BF-74DE-4829-BEF6-F0B183E6C020}.Release|x86.ActiveCfg = Release|Any CPU
 		{6DBFC8BF-74DE-4829-BEF6-F0B183E6C020}.Release|x86.Build.0 = Release|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Debug|x64.Build.0 = Debug|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Debug|x86.Build.0 = Debug|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Release|x64.ActiveCfg = Release|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Release|x64.Build.0 = Release|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Release|x86.ActiveCfg = Release|Any CPU
-		{FA692398-B08B-48BA-BDE1-24883D191D48}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{09C3255B-1972-4EB8-91D0-FB9F5CD82BCB} = {1EFCD839-0726-4BCE-B745-1E829991B1BC}
@@ -368,6 +354,5 @@ Global
 		{DBAE4CDC-7775-4D51-B457-ACEE5D1D9275} = {9CE4B5F7-9251-4340-BACB-207066A5DBE8}
 		{07E3455B-9CDF-4124-854E-8AC9B8950B1A} = {90058283-1F8F-465D-89E4-D4374A27E612}
 		{6DBFC8BF-74DE-4829-BEF6-F0B183E6C020} = {9CE4B5F7-9251-4340-BACB-207066A5DBE8}
-		{FA692398-B08B-48BA-BDE1-24883D191D48} = {1EFCD839-0726-4BCE-B745-1E829991B1BC}
 	EndGlobalSection
 EndGlobal

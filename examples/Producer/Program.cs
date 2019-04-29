@@ -39,7 +39,7 @@ namespace Confluent.Kafka.Examples.ProducerExample
             string brokerList = args[0];
             string topicName = args[1];
 
-            var config = new ProducerConfig { BootstrapServers = brokerList };
+            var config = new ProducerConfig { BootstrapServers = brokerList, LingerMs = null };
 
             using (var producer = new ProducerBuilder<string, string>(config).Build())
             {
