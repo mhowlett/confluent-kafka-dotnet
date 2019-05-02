@@ -176,14 +176,14 @@ namespace Confluent.Examples.StatelessProcessor
 
                 while (!compositeCts.IsCancellationRequested)
                 {
-                    Message<TInKey, TInValue> message = null;
+                    ConsumeResult<TInKey, TInValue> cr = null;
 
                     if (InputTopic != null)
                     {
                         try
                         {
                             // callback handler exceptions don't propagate.
-                            message = consumer.Consume(compositeCts.Token).Message;
+                            cr = consumer.Consume(compositeCts.Token);
                         }
                         catch (ConsumeException ex)
                         {
@@ -214,12 +214,36 @@ namespace Confluent.Examples.StatelessProcessor
                         }
                     }
 
-                    var result = Function(message);
+                    var result = Function(cr.Message);
 
                     if (result != null)
                     {
-                        producer.Produce(OutputTopic, result);
+                        while (true)
+                        {
+                            try
+                            {
+                                producer.Produce(OutputTopic, result,
+                                    d =>
+                                    {
+                                        if (d.Error.Code != ErrorCode.NoError)
+                                        {
+                                            errorCts.Cancel();
+                                        }
+                                        consumer.StoreOffset(cr);
+                                    });
+                                break;
+                            }
+                            catch (KafkaException e)
+                            {
+                                if (e.Error.Code == ErrorCode.Local_QueueFull)
+                                {
+                                    producer.Poll(TimeSpan.FromSeconds(1));
+                                }
+                            }
+                        }
                     }
+
+                    consumer.StoreOffset(cr);
 
                     aMessageHasBeenProcessed = true;
                 }
