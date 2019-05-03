@@ -200,7 +200,8 @@ namespace Confluent.Examples.StatelessProcessor
                             }
 
                             // possible: ErrorCode.Local_UnknownGroup, if rk->rkcg not set.
-                            //    - when can that happen?
+                            //   - should never happen.
+
                             // - Authorization failures. (see java docs)
                             // - Invalid group id.
                             // - other future errors.
@@ -214,7 +215,7 @@ namespace Confluent.Examples.StatelessProcessor
                         }
                     }
 
-                    var result = Function(cr.Message);
+                    var result = Function(cr == null ? null : cr.Message);
 
                     if (result != null)
                     {
@@ -229,7 +230,10 @@ namespace Confluent.Examples.StatelessProcessor
                                         {
                                             errorCts.Cancel();
                                         }
-                                        consumer.StoreOffset(cr);
+                                        if (cr != null)
+                                        {
+                                            consumer.StoreOffset(cr);
+                                        }
                                     });
                                 break;
                             }
@@ -242,8 +246,10 @@ namespace Confluent.Examples.StatelessProcessor
                             }
                         }
                     }
-
-                    consumer.StoreOffset(cr);
+                    else
+                    {
+                        consumer.StoreOffset(cr);
+                    }
 
                     aMessageHasBeenProcessed = true;
                 }

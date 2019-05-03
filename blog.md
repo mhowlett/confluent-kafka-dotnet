@@ -1,16 +1,18 @@
 # Stateless Stream Processing in C#/.NET
 
 The recent v1.0 release of Confluent's Kafka clients is big news for .NET developers.
-The .NET API has had a major overhaul, making it more idiomatic, extensible and easier
-to use. In this blog post, we're going to walk through some of the new features of the
-library in the context of implementing a high level abstraction for stateless stream processing. The goal of this post is twofold. First, to provide in-depth comentry on how to use the library that you can look to when implementing your own applications. Second, to make something that is generally useful out-of-the-box.
+The .NET API has had a major overhaul, making it more idiomatic and extensible, setting a great foundation for future development. In this blog post, we're going to walk through some of the new features of the library in the context of implementing a high level abstraction for stateless stream processing.
+
+The primary goal of this blog post is to provide some in-depth commentary on how to use the library that you can look to when implementing your own applications. Compared to interacting with the Kafka protocol itself, the .NET client is very high level. The Kafka protocol pushes a lot of complexity onto the clients. But the library allows for a lot of flexibility, and there is still quite a bit of work involved in using it well, and we'll be covering the typical patterns for doing so.
+
+In practice, you'll often want to implement your own high level abstractions on top of the clients - like we're doing here with the stateless stream processor. In the future, we anticipate providing more of these high level abstractions out-of-the-box.
 
 Although we'll be using the .NET client, a lot of the ideas in this article are directly transferrable to other clients that build on the librdkafka C library, including Confluent's [Python](...) and [Golang](...) clients. All code discussed in this article can be found in the .NET client github repo, including the [stream processor](...) itself and an [example](...) of it's use.
 
 Here's an example of how to use the `Processor` class we're going to make:
 
 ```
-var transformProcessor = new Processor<Null, string, string, string>
+var processor = new Processor<Null, string, string, string>
 {
     Name = "weblog-processor",
     BootstrapServers = brokerAddress,
@@ -26,7 +28,7 @@ var transformProcessor = new Processor<Null, string, string, string>
 };
 ```
 
-Our processing function here takes messages containing a web server log, removes the ip address to make the web log PII compliant, and repartitions by country.
+The `Function` does som takes messages containing a web server log, removes the ip address to make the web log PII compliant, and repartitions by country.
 
 Just set a few high level configuration properties (including your processing function) and start it:
 
@@ -43,7 +45,7 @@ More in depth information on how to use the `Processor` class is available in th
 
 ## Setting up
 
-A nice addition to the 1.0 API are the strongly typed configuration classes. These classes are just convenience wrappers around the string/string configuration settings [expected by librdkafka](...), which you can still use if you want. However, the specialized configuration classes give you edit / compile time type validation, API documentation via intellisense, and they're directly compatible with the ASP .NET `IConfiguration` `Option` pattern (but that's a story for a future blog post!).
+A nice addition to the 1.0 API are the strongly typed configuration classes. These classes are just convenience wrappers around the string/string configuration settings [expected by librdkafka](...), which you can still use if you want. However, the specialized configuration classes give you edit and compile time type validation, API documentation via intellisense, and they're directly compatible with the ASP.NET [options pattern](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/configuration/options) - but that's a story for a future blog post!
 
 There are many configuration options, but for the most part, the defaults are probably what you want. Here's all properties we set for the consumer:
 
@@ -100,40 +102,56 @@ If you don't specify a logger, the default behavior is for log messages to be wr
 Finally, we implement an error handler - we'll talk about the details of this later when we talk about error handling.
 
 
-## The Consume Loop
+## The Processing Loop
 
 Our `Processor` makes use of just one `Producer` and one `Consumer` instance. This is typical. The clients are very performant - can deliver hundreds of thousands of events per second and CPU is typically not a bottleneck. Additionally, efficiency improves with higher client utilization because of increased batching of messages in communication with the cluster. Fewer clients also minimizes the number of open TCP connections, though this doesn't become a meaningful constraint until you get to thousands of connections.
 
-At the heart of our processor is a [single threaded consume loop](...). This pattern is quite low level for a language like C#, but it's effective for writing high throughput streaming applications and standard practice for doing so across many languages. If your application calls for it, you can easily build higher level abstractions on top of this - indeed that is what we are doing now!
+At the heart of our processor is a [single threaded consume loop](...). This pattern is quite low level for a language like C#, but it's effective for writing high throughput streaming applications and standard practice for doing so across many languages. 
 
 Here's the produce loop in our processor class:
 
 ```
-while (true)
+while (!compositeCts.IsCancellationRequested)
 {
-    ConsumeResult<TInKey, TInValue> cr;
-    try
+    ConsumeResult<TInKey, TInValue> cr = null;
+
+    if (InputTopic != null)
     {
-        cr = consumer.Consume(compositeCancellationToken);
-    }
-    catch (ConsumeException ex)
-    {
-        if (ex.Error.Code == ErrorCode.Local_ValueDeserialization)
-        {            
-            if (ConsumeErrorTolerance == ErrorTolerance.All)
+        try
+        {
+            // callback handler exceptions don't propagate.
+            cr = consumer.Consume(compositeCts.Token);
+        }
+        catch (ConsumeException ex)
+        {
+            if (ex.Error.Code == ErrorCode.Local_ValueDeserialization ||
+                ex.Error.Code == ErrorCode.Local_KeyDeserialization)
             {
-                continue;
+                if (ConsumeErrorTolerance == ErrorTolerance.All)
+                {
+                    continue;
+                }
+
+                // Log then:
+                break; // no error tolerance.
             }
 
-            // Log error
-            errorCts.Cancel();
-        }
+            // possible: ErrorCode.Local_UnknownGroup, if rk->rkcg not set.
+            //    - when can that happen?
+            // - Authorization failures. (see java docs)
+            // - Invalid group id.
+            // - other future errors.
+            
+            // - session timeout. 
+            //   - if this occurs, I assume there is no revoke?
+            //   - will consumer try to re-join group?
 
-        // Log error
-        throw;
+            // Log, then:
+            break;
+        }
     }
 
-    var result = Function(message);
+    var result = Function(cr == null ? null : cr.Message);
 
     if (result != null)
     {
@@ -148,14 +166,9 @@ while (true)
                         {
                             errorCts.Cancel();
                         }
-
-                        try
+                        if (cr != null)
                         {
                             consumer.StoreOffset(cr);
-                        }
-                        catch (KafkaException)
-                        {
-                            errorCts.Cancel();
                         }
                     });
                 break;
@@ -166,64 +179,89 @@ while (true)
                 {
                     producer.Poll(TimeSpan.FromSeconds(1));
                 }
-
-                throw;
             }
         }
+    }
+    else
+    {
+        consumer.StoreOffset(cr);
     }
 
     aMessageHasBeenProcessed = true;
 }
 ```
 
-There is quite a lot of code here! Most of it relates to error handling, which we'll cover in the next section. Here', we'll just walk through the happy-case.
+There is quite a lot of code here! Most of it relates to error handling, which we'll cover in the next section. Here, we'll just walk through the happy-case.
+
+### Consuming
 
 The first thing we do is call the `Consume` method (line X). This blocks until either 1. A new message is available for delivery to the application 2. the call is cancelled or 3. an error occured (an exception is thrown).
 
-In contrast to the `poll` method in the Java client, the `Consume` method only returns one message at a time to the application. Also, fetch requests to the cluster do not occur as a direct result of calls to the `Consume` method. Instead, librdkafka controls this process completely, maintaining a dedicate thread for each broker that is the leader of one or more partitions it is consuming from. These threads pass messages to a central queue as they are fetched and it is this queue that the `Consume` method is waiting on for new messages.
+In contrast to the `poll` method in the Java client, the `Consume` method only returns one message at a time to the application. Also, fetch requests to the cluster do not occur as a direct result of calls to the `Consume` method. librdkafka is in control of this process completely, maintaining a dedicate thread for each broker that is the leader of one or more partitions it is consuming from. These threads pass messages to a central queue as they are fetched and it is this queue that the `Consume` method is waiting on for new messages.
 
-The `ConsumeResult` instance returned by the `Consume` method always corresponds to a successfuly consumed message (unless you have ). Any errors would result in a `ConsumeException` being thrown. The `ConsumeResult` class adds context to the `Message` class, which represents the message payload. In particular, the partition consumed from and the offest in that partition.
+The `ConsumeResult` instance returned by the `Consume` method always corresponds to a successfuly consumed message (unless you've enabled partition eof notifications, which are also exposed via ..). Any errors during consume result in a `ConsumeException` being thrown. The purpose of the `ConsumeResult` class is to add context to the `Message` class, which represents the message payload. In particular, the partition consumed from and the offest in that partition.
 
-Assuming there is no error, we apply the user configured `Function` to the consumed message (line X) (this is our stateless processing) and then write the result using the producer (line X). The produce call is wrapped in a retry loop (line X), which only comes into play in an error scenario (discussed in the next section) due to the `break` statement on line X.
+we flag that we have processed a message. This is useful in our error handling.
+
+### Processing and Producing
+
+Assuming there is no error, we apply the user configured `Function` to the consumed message (line X) and then write the result using the producer (line X). The produce call is wrapped in a retry loop (line X), but this only comes into play in an error scenario (discussed in the next section) due to the `break` statement on line X.
 
 The produce call is non-blocking - does not wait for a response from the cluster to acknowledge successful production of the message (or otherwise). Program flow immediately continues on to the next iteration of the main loop, consuming another message, processing it, and writing out the result. In practice, our consume loop can execute hundreds of thousands of times per second, and there can be an equally large number of produce requests in flight.
 
-When the outcome of the produce call becomes available, the producer delivers this to the application via the callback passed in as the third argument of the produce call. There are actually two methods for producing messages using the .NET Client - `Produce`, which provides message delivery notifications via a callback function and `ProduceAsync`, which uses `Task`s for this purpose. We prefer `Produce` here primarily because it's more efficient (up to 2x the throughput, in the case of very small messages).
+When the outcome of a produce call (a 'delivery report') becomes available, this is exposed to the application via the callback passed in as the third argument of the produce call. The .NET Client actually provides two methods for producing messages - `Produce`, which provides message delivery notifications via a callback function and `ProduceAsync`, which uses `Task`s for this purpose. We prefer `Produce` in this scenario primarily because it's more efficient (up to 2x the throughput, in the case of very small messages). `ProduceAsync` is useful where you have high concurrency in the calling function, such as in a web request handler.
 
-Our callback function is specified inline and it makes use of the consumed value from earlier in the loop.  
+Another subtle difference between the two methods is that all `Produce` callbacks execute on a single thread, and the order of broker originated results is guaranteed to match execution order of the callbacks. This is not necessarily guaranteed with the `Task` results, which may typically continue on any thread pool thread.
 
+### Committing
 
-, we call the consumer's `StoreOffsets`. By default offsets stored when delivered to application. gives at most once semantics. we get at least once. by Synchronous operations are the enemy of high throughput processing.  **EnableAutoOffsetStore**: Setting this property to `false` allows you to control when an offset is eligible to be committed (using the `StoreOffsets` method) via librdkafka's auto-offset-commit capability. This pattern is usually the best way to achieve at-least once semantics, and we'll discuss why further down.
+Our callback function is specified inline and makes use of the `cr` value that was set earlier in the loop. When the callback is called, the value of `cr` will be the same as when the `Produce` function was called, even though the callback is executing on a different thread and the value of `cr` in the main processing loop is likely to have changed in the mean time. This is an example of a *closure* and we say the `cr` value has been *captured*.
 
+In the produce callback, we would like to commit the offset corresponding to the consumed message, since it has now been completely processed. Since we've confiured idempotence, we are guaranteed all messages are produced in order and exactly once and that our callback will be.
+We could use the `Commit` method to do this, but that is a synchronous operation which would block the callback thread, limiting the speed at which we are able to process delivery reports.
 
-Since the order in which we produce messa matches the order in which 
-Because idempotent producer is enabled, produce order is guaranteed to be the same as the consume order. As the application is running, exactly once delivery is also 
+Instead, we make use of librdkafka's auto-commit capability. When `EnableAutoCommit` is set to `true`, a background thread priodically commits the last offset which has been *stored* for each partition of interest. Usually, this offset is set automatically just before the message is delievered to the application by `Consume`, however we can turn this behaior off by setting the `EnableAutoOffsetStore` config property to `false`. We can then explicitly specify the offset that the commit thread commits using the `StoreOffsets` method.
 
-Dispite the asynchronous nature of this code, we have very good semantics. produce order is guaranteed to be the same as consume order thanks to the idempotent producer - even in the event of failure and automatic retries by the client. Also, although semantics are technically at-least once, the only time a duplicate message would be produced is if a failure occurs 
+The default behavior gives at-most once semantics - if the application crashes between the message being delivered to the application and the message being processed, the offset may still be committed, and the message will not be processed when the application is restarted. By waiting to call `StoreOffsets` until the result has been confirmed to have been produced, we achieve at least once semantics.
 
-this call is asyncrhonous. Since we've confiured idempotence, we are guaranteed all messages are produced in order and exactly once.
+The downside of the periodic-commit approach is that if the application is shutdown uncleanly, there 
 
-
-after we flag that we have processed a message. This is useful in our error handling.
 
 ## Error handling
 
-A question that people often ask is: "how can I check if my cluster is down?"
+people often ask: "how can I check if my cluster is down?"
 
-This question is not as simple as it sounds. What does 'cluster down' mean? Is that all brokers down? Or just the leaders for the partitions we care about? Does it include the replicas? If all brokers are down is this just a temporary networking problem? Also, if we propagate broker state information via the client, should we also make partition leader information available, and maybe consumer coordinator information?
+This question is not as simple as it sounds. What does 'cluster down' mean? Is that all brokers down? Or just the leaders for the partitions you care about? Does it include the replicas? If all brokers are down is this just a temporary networking problem? Also, assuming we did propagate broker state information via the client, should we also make partition leader information available, and maybe consumer coordinator information?
 
-As much as possible, librdkafka abstracts all of this complexity away from you. It assumes all problems are temporary and attempts to recover from them automatically.
-Generally this is what you want - you should leverage this capability as much as possible. Librdkafka does however provides some hooks for you to react to problems and we discuss these in the following sections.
+There is a lot of complexiy in 
+, and as much as possible, librdkafka abstracts all of this away from you. It assumes all problems are temporary and attempts to recover from them automatically. Generally this is what you want, however the client provides some hooks for you to react to problems and we discuss these in the following sections.
 
-### Error handler
-
-
+Let's start with the main processing loop. 
 
 ### Consume exceptions
 
+The consume method can throw an exception in hte following scenarios:
+
+- deserialization error.
+- ...
+
+The only one non-fatal is deserialization.
+- ignore all
+- ignore none
+- dead-letter queue.
+
 ### Produce exceptions
 
+Although the produce call is asynchronous, there are some circumstances in which it can produce an error immediately. These are:
+
+- local queue full
+- ...
+
+The only error that should be considered non-fatal is 
+
 ### Delivery Report Errors
+
+### Error handler
 
 
 
@@ -255,3 +293,5 @@ assuming confiured everything correctly.
 
 
  Another difference worth mentioning is that all `Produce` callbacks are serviced by a single thread, and the order in which the callbacks is called is guaranteed to be the same as the order in which delivery reports are available. By contrast, `Task`s returned by `ProduceAsync` are completed on thread pool threads, so order of continuations is not guaranteed.
+
+  The client also provides a `Commit` method. Why not use this? because `Commit` is synchronous and synchronous operatons are the enemy of high throughput processing. 
