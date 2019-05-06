@@ -132,20 +132,23 @@ while (!compositeCts.IsCancellationRequested)
                     continue;
                 }
 
+                // another option here is put in dead letter queue.
+
                 // Log then:
-                break; // no error tolerance.
+                break; // no error tolerance. end application.
             }
 
-            // possible: ErrorCode.Local_UnknownGroup, if rk->rkcg not set.
-            //    - when can that happen?
-            // - Authorization failures. (see java docs)
-            // - Invalid group id.
-            // - other future errors.
-            
-            // - session timeout. 
-            //   - if this occurs, I assume there is no revoke?
-            //   - will consumer try to re-join group?
-
+            // possible: 
+            // - ErrorCode.Local_UnknownGroup, if rk->rkcg not set.
+            //    - this can't happen in C# client.
+            // In Java:
+            //    (unsure if relevant to librdkafka)
+            //  - Authorization failures. (see java docs)
+            //  - Invalid group id.
+            //  - other future errors.
+            //  - session timeout. 
+            //    - if this occurs, I assume there is no revoke?
+            //    - will consumer try to re-join group?
             // Log, then:
             break;
         }
