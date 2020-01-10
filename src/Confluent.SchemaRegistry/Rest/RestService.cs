@@ -224,9 +224,9 @@ namespace Confluent.SchemaRegistry
 
         #region Schemas
 
-        public async Task<string> GetSchemaAsync(int id)
-            => (await RequestAsync<SchemaString>($"schemas/ids/{id}", HttpMethod.Get)
-                        .ConfigureAwait(continueOnCapturedContext: false)).Schema;
+        public async Task<RegisteredSchema> GetSchemaAsync(int id)
+            => (await RequestAsync<RegisteredSchema>($"schemas/ids/{id}", HttpMethod.Get)
+                        .ConfigureAwait(continueOnCapturedContext: false));
 
         #endregion Schemas
 
@@ -240,36 +240,50 @@ namespace Confluent.SchemaRegistry
             => await RequestListOfAsync<int>($"subjects/{subject}/versions", HttpMethod.Get)
                         .ConfigureAwait(continueOnCapturedContext: false);
 
-        public async Task<Schema> GetSchemaAsync(string subject, int version)
-            => await RequestAsync<Schema>($"subjects/{subject}/versions/{version}", HttpMethod.Get)
+        public async Task<RegisteredSchema> GetSchemaAsync(string subject, int version)
+            => await RequestAsync<RegisteredSchema>($"subjects/{subject}/versions/{version}", HttpMethod.Get)
                         .ConfigureAwait(continueOnCapturedContext: false);
 
-        public async Task<Schema> GetLatestSchemaAsync(string subject)
-            => await RequestAsync<Schema>($"subjects/{subject}/versions/latest", HttpMethod.Get)
+        public async Task<RegisteredSchema> GetLatestSchemaAsync(string subject)
+            => await RequestAsync<RegisteredSchema>($"subjects/{subject}/versions/latest", HttpMethod.Get)
                         .ConfigureAwait(continueOnCapturedContext: false);
 
-        public async Task<int> RegisterSchemaAsync(string subject, string schema)
-            => (await RequestAsync<SchemaId>($"subjects/{subject}/versions", HttpMethod.Post, new SchemaString(schema))
+        public async Task<int> RegisterSchemaAsync(string subject, Schema schema)
+            => false
+                // In the avro case, just send the schema string to maintain backards compatibility.
+                ? (await RequestAsync<SchemaId>($"subjects/{subject}/versions", HttpMethod.Post, new SchemaString(schema.SchemaString))
+                        .ConfigureAwait(continueOnCapturedContext: false)).Id
+                : (await RequestAsync<SchemaId>($"subjects/{subject}/versions", HttpMethod.Post, schema)
                         .ConfigureAwait(continueOnCapturedContext: false)).Id;
 
-        public async Task<Schema> CheckSchemaAsync(string subject, string schema, bool ignoreDeletedSchemas)
-            => await RequestAsync<Schema>($"subjects/{subject}?deleted={!ignoreDeletedSchemas}", HttpMethod.Post, new SchemaString(schema))
+        // Checks whether a schema has been registered under a given subject.
+        public async Task<RegisteredSchema> CheckIfSchemaRegisteredAsync(string subject, Schema schema, bool ignoreDeletedSchemas)
+            => false
+                // In the avro case, just send the schema string to maintain backards compatibility.
+                ? await RequestAsync<RegisteredSchema>($"subjects/{subject}?deleted={!ignoreDeletedSchemas}", HttpMethod.Post, new SchemaString(schema.SchemaString))
+                        .ConfigureAwait(continueOnCapturedContext: false)
+                : await RequestAsync<RegisteredSchema>($"subjects/{subject}?deleted={!ignoreDeletedSchemas}", HttpMethod.Post, schema)
                         .ConfigureAwait(continueOnCapturedContext: false);
 
-        public async Task<Schema> CheckSchemaAsync(string subject, string schema)
-            => await RequestAsync<Schema>($"subjects/{subject}", HttpMethod.Post, new SchemaString(schema))
-                        .ConfigureAwait(continueOnCapturedContext: false);
 
         #endregion Subjects
 
         #region Compatibility
 
-        public async Task<bool> TestCompatibilityAsync(string subject, int versionId, string schema)
-            => (await RequestAsync<CompatibilityCheck>($"compatibility/subjects/{subject}/versions/{versionId}", HttpMethod.Post, new SchemaString(schema))
+        public async Task<bool> TestCompatibilityAsync(string subject, int versionId, Schema schema)
+            => false
+                // In the avro case, just send the schema string to maintain backards compatibility.
+                ? (await RequestAsync<CompatibilityCheck>($"compatibility/subjects/{subject}/versions/{versionId}", HttpMethod.Post, schema.SchemaString)
+                        .ConfigureAwait(continueOnCapturedContext: false)).IsCompatible
+                : (await RequestAsync<CompatibilityCheck>($"compatibility/subjects/{subject}/versions/{versionId}", HttpMethod.Post, schema)
                         .ConfigureAwait(continueOnCapturedContext: false)).IsCompatible;
 
-        public async Task<bool> TestLatestCompatibilityAsync(string subject, string schema)
-            => (await RequestAsync<CompatibilityCheck>($"compatibility/subjects/{subject}/versions/latest", HttpMethod.Post, new SchemaString(schema))
+        public async Task<bool> TestLatestCompatibilityAsync(string subject, Schema schema)
+            => false
+                // In the avro case, just send the schema string to maintain backards compatibility.
+                ? (await RequestAsync<CompatibilityCheck>($"compatibility/subjects/{subject}/versions/latest", HttpMethod.Post, schema.SchemaString)
+                        .ConfigureAwait(continueOnCapturedContext: false)).IsCompatible
+                : (await RequestAsync<CompatibilityCheck>($"compatibility/subjects/{subject}/versions/latest", HttpMethod.Post, schema)
                         .ConfigureAwait(continueOnCapturedContext: false)).IsCompatible;
 
         #endregion Compatibility

@@ -79,7 +79,7 @@ namespace Confluent.SchemaRegistry.Serdes
                             }
 
                             var writerSchemaJson = await schemaRegistryClient.GetSchemaAsync(writerId).ConfigureAwait(continueOnCapturedContext: false);
-                            var writerSchema = global::Avro.Schema.Parse(writerSchemaJson);
+                            var writerSchema = global::Avro.Schema.Parse(writerSchemaJson.SchemaString);
 
                             datumReader = new GenericReader<GenericRecord>(writerSchema, writerSchema);
                             datumReaderBySchemaId[writerId] = datumReader;

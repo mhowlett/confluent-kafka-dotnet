@@ -1,4 +1,4 @@
-﻿// Copyright 2016-2017 Confluent Inc.
+// Copyright 2016-2017 Confluent Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,147 +16,69 @@
 
 using System;
 using System.Runtime.Serialization;
+using System.Collections.Generic;
 
 
-namespace Confluent.SchemaRegistry
+namespace  Confluent.SchemaRegistry
 {
     /// <summary>
-    ///     Represents a Schema stored in Schema Registry.
+    ///     Represents a schema.
     /// </summary>
     [DataContract]
-    public class Schema : IComparable<Schema>, IEquatable<Schema>
+    public class Schema
     {
-        /// <summary>
-        ///     The subject the schema is registered against.
-        /// </summary>
-        [DataMember(Name = "subject")]
-        public string Subject { get; set; }
-
-        /// <summary>
-        ///     The schema version.
-        /// </summary>
-        [DataMember(Name = "version")]
-        public int Version { get; set; }
-
-        /// <summary>
-        ///     Unique identifier of the schema.
-        /// </summary>
-        [DataMember(Name = "id")]
-        public int Id { get; set; }
-
         /// <summary>
         ///     A string representation of the schema.
         /// </summary>
         [DataMember(Name = "schema")]
         public string SchemaString { get; set; }
 
-        private Schema() {}
+        /// <summary>
+        ///     A list of schemas referenced by this schema.
+        /// </summary>
+        [DataMember(Name = "references")]
+        public List<SchemaReference> References { get; set; }
 
         /// <summary>
-        ///     Initializes a new instance of the Schema class.
+        ///     The type of schema: AVRO, PROTOBUF, JSON
         /// </summary>
-        /// <param name="subject">
-        ///     The subject the schema is registered against.
-        /// </param>
-        /// <param name="version">
-        ///     The schema version, >= 0
-        /// </param>
-        /// <param name="id">
-        ///     The globally unique identifier of the schema, >= 0
-        /// </param>
+        [DataMember(Name = "schemaType")]
+        public SchemaType SchemaType { get; set; }
+
+        /// <summary>
+        ///     Empty constructor for serialization
+        /// </summary>
+        private Schema() { }
+
+        /// <summary>
+        ///     Initializes a new instance of this class.
+        /// </summary>
         /// <param name="schemaString">
         ///     String representation of the schema.
         /// </param>
-        public Schema(string subject, int version, int id, string schemaString)
-        {
-            if (string.IsNullOrEmpty(subject))
-            {
-                throw new ArgumentNullException(nameof(subject));
-            }
-            if (string.IsNullOrEmpty(schemaString))
-            {
-                throw new ArgumentNullException(nameof(schemaString));
-            }
-            if (version < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(version));
-            }
-            if (id < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(id));
-            }
-
-            Subject = subject;
-            Version = version;
-            Id = id;
-            SchemaString = schemaString;
-        }
-
-        /// <summary>
-        ///     Returns a string representation of the Schema object.
-        /// </summary>
-        /// <returns>
-        ///     A string that represents the schema object.
-        /// </returns>
-        public override string ToString()
-            => $"{{subject={Subject}, version={Version}, id={Id}}}";
-        
-        /// <summary>
-        ///     Returns a hash code for this Schema.
-        /// </summary>
-        /// <returns>
-        ///     An integer that specifies a hash value for this Schema.
-        /// </returns>
-        public override int GetHashCode()
-        {
-            int result = Subject.GetHashCode();
-            result = 31 * result + Version;
-            result = 31 * result + Id;
-            result = 31 * result + SchemaString.GetHashCode();
-            return result;
-        }
-        
-        /// <summary>
-        ///     Compares this instance with a specified Schema object and indicates whether this 
-        ///     instance precedes, follows, or appears in the same position in the sort order as
-        ///     the specified schema.
-        /// </summary>
-        /// <param name="other">
-        ///     The schema to compare with this instance.
+        /// <param name="schemaType">
+        ///     The schema type: AVRO, PROTOBUF, JSON
         /// </param>
-        /// <returns>
-        ///     A 32-bit signed integer that indicates whether this instance precedes, follows, or
-        ///     appears in the same position in the sort order as the other parameter. Less than 
-        ///     zero: this instance precedes other. Zero: this instance has the same position in
-        ///     the sort order as other. Greater than zero: This instance follows other OR other 
-        ///     is null.
-        /// </returns>
-        public int CompareTo(Schema other)
+        /// <param name="references">
+        ///     A list of schemas referenced by this schema.
+        /// </param>
+        public Schema(string schemaString, List<SchemaReference> references, SchemaType schemaType)
         {
-            if (other == null)
-            {
-                throw new ArgumentException("cannot compare object of type Schema with null.");
-            }
-
-            int result = string.Compare(Subject, other.Subject, StringComparison.Ordinal);
-            if (result == 0)
-            {
-                return Version.CompareTo(other.Version);
-            }
-
-            return result;
+            SchemaString = schemaString;
+            References = references;
+            SchemaType = schemaType;
         }
 
         /// <summary>
-        ///     Determines whether this instance and a specified object, which must also be a Schema 
-        ///     object, have the same value (Overrides Object.Equals(Object))
+        ///     Determines whether this instance and a specified object, which must also be an
+        ///     instance of this type, have the same value (Overrides Object.Equals(Object))
         /// </summary>
         /// <param name="obj">
-        ///     The Schema to compare to this instance.
+        ///     The instance to compare to this instance.
         /// </param>
         /// <returns>
-        ///     true if obj is a Schema and its value is the same as this instance; otherwise, false. 
-        ///     If obj is null, the method returns false.
+        ///     true if obj is of the required type and its value is the same as this instance;
+        ///     otherwise, false. If obj is null, the method returns false.
         /// </returns>
         public override bool Equals(object obj)
         {
@@ -170,19 +92,75 @@ namespace Confluent.SchemaRegistry
         }
 
         /// <summary>
-        ///     Determines whether this instance and another specified Schema object are the same.
+        ///     Determines whether this instance and another specified object of the same type are
+        ///     the same.
         /// </summary>
         /// <param name="other">
-        ///     The schema to compare to this instance.
+        ///     The instance to compare to this instance.
         /// </param>
         /// <returns>
         ///     true if the value of the other parameter is the same as the value of this instance; 
         ///     otherwise, false. If other is null, the method returns false.
         /// </returns>
         public bool Equals(Schema other)
-            => Version == other.Version &&
-               Id == other.Id &&
-               Subject == other.Subject &&
-               SchemaString == other.SchemaString;
+            => this.SchemaString == other.SchemaString;
+
+        /// <summary>
+        ///     Returns a hash code for this instance.
+        /// </summary>
+        /// <returns>
+        ///     An integer that specifies a hash value for this instance.
+        /// </returns>
+        /// <remarks>
+        ///     The hash code returned is that of the Schema property,
+        ///     since the other properties are effectively derivatives
+        ///     of this property.
+        /// </remarks>
+        public override int GetHashCode()
+        {
+            return SchemaString.GetHashCode();
+        }
+
+        /// <summary>
+        ///     Compares this instance with another instance of this object type and indicates whether
+        ///     this instance precedes, follows, or appears in the same position in the sort order
+        ///     as the specified schema reference.
+        /// </summary>
+        /// <param name="other">
+        ///     The instance to compare with this instance.
+        /// </param>
+        /// <returns>
+        ///     A 32-bit signed integer that indicates whether this instance precedes, follows, or
+        ///     appears in the same position in the sort order as the other parameter. Less than 
+        ///     zero: this instance precedes other. Zero: this instance has the same position in
+        ///     the sort order as other. Greater than zero: This instance follows other OR other 
+        ///     is null.
+        /// </returns>
+        /// <remarks>
+        ///     This method considers only the Schema property, since the other two properties are
+        ///     effectively derivatives of this property.
+        /// </remarks>
+        public int CompareTo(Schema other)
+        {
+            if (other == null)
+            {
+                throw new ArgumentException("Cannot compare object of type UnregisteredSchema with null.");
+            }
+
+            return SchemaString.CompareTo(other.SchemaString);
+
+            // If the schema strings are equal and any of the other properties are not,
+            // then this is a logical error. Assume that this prevented/handled elsewhere.
+        }
+
+        /// <summary>
+        ///     Returns a summary string representation of the object.
+        /// </summary>
+        /// <returns>
+        ///     A string that represents the object.
+        /// </returns>
+        public override string ToString()
+            => $"{{chars={SchemaString.Length}, type={SchemaType}, references={References.Count}}}";
+
     }
 }

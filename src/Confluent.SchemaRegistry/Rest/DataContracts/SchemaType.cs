@@ -1,4 +1,4 @@
-﻿// Copyright 2016-2017 Confluent Inc.
+// Copyright 2020 Confluent Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,27 @@
 //
 // Refer to LICENSE for more information.
 
-using System.Runtime.Serialization;
-
 
 namespace  Confluent.SchemaRegistry
 {
-    [DataContract]
-    internal class SchemaString
+    /// <summary>
+    ///     Enumerates the types of schema supported by Schema Registry.
+    /// </summary>
+    public enum SchemaType
     {
-        [DataMember(Name = "schema")]
-        public string Schema { get; set; }
+        /// <summary>
+        ///     Avro
+        /// </summary>
+        AVRO,
 
         /// <summary>
-        ///     Empty constructor for serialization
+        ///     Protobuf
         /// </summary>
-        private SchemaString() { }
+        PROTOBUF,
 
-        public SchemaString(string schema)
-        {
-            Schema = schema;
-        }
+        /// <summary>
+        ///     Json
+        /// </summary>
+        JSON
     }
 }

@@ -37,10 +37,12 @@ namespace Confluent.SchemaRegistry.IntegrationTests
             var subject = sr.ConstructValueSubjectName(topicName);
             var id = sr.RegisterSchemaAsync(subject, testSchema1).Result;
 
-            var schema = sr.GetLatestSchemaAsync(subject).Result;
-            var schemaString = sr.GetSchemaAsync(subject, schema.Version).Result;
+            var latestSchema = sr.GetLatestSchemaAsync(subject).Result;
+            var schema = sr.GetSchemaAsync(subject, latestSchema.Version).Result;
 
-            Assert.Equal(schemaString, testSchema1);
+            Assert.Equal(schema.SchemaString, testSchema1);
+            Assert.Equal(schema.SchemaType, SchemaType.AVRO);
+            Assert.Empty(schema.References);
         }
     }
 }

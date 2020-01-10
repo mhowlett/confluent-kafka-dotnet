@@ -15,7 +15,6 @@
 // Refer to LICENSE for more information.
 
 using System;
-using System.Collections.Generic;
 using Xunit;
 
 
@@ -39,7 +38,9 @@ namespace Confluent.SchemaRegistry.IntegrationTests
             var id = sr.RegisterSchemaAsync(subject, testSchema1).Result;
 
             var schema = sr.GetSchemaAsync(id).Result;
-            Assert.Equal(schema, testSchema1);
+            Assert.Equal(schema.SchemaString, testSchema1);
+            Assert.Empty(schema.References);
+            Assert.Equal(schema.SchemaType, SchemaType.AVRO);
         }
     }
 }

@@ -4,15 +4,16 @@
     <ProjectTypeGuids>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <AssemblyName>Protobuf</AssemblyName>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
-    <LangVersion>7.1</LangVersion>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- nuget package reference: <PackageReference Include="Confluent.Kafka" Version="1.3.0" /> -->
     <ProjectReference Include="../../src/Confluent.Kafka/Confluent.Kafka.csproj" />
+    <ProjectReference Include="../../src/Confluent.SchemaRegistry/Confluent.SchemaRegistry.csproj" />
+    <ProjectReference Include="../../src/Confluent.SchemaRegistry.Serdes/Confluent.SchemaRegistry.Serdes.csproj" />
     <PackageReference Include="Grpc.Tools" Version="1.16.0" />
-    <PackageReference Include="Google.Protobuf" Version="3.6.1" />
+    <PackageReference Include="Google.Protobuf" Version="3.11.2" />
   </ItemGroup>
 
 </Project>
