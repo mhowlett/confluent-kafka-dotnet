@@ -1,4 +1,4 @@
-// Copyright 20 Confluent Inc.
+// Copyright 2020 Confluent Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,24 +23,19 @@ namespace Confluent.SchemaRegistry.IntegrationTests
     public static partial class Tests
     {
         [Theory, MemberData(nameof(SchemaRegistryParameters))]
-        public static void GetSchemaById(Config config)
+        public static void ProtobufWithReferences(Config config)
         {
-            var topicName = Guid.NewGuid().ToString();
-
-            var testSchema1 = 
-                "{\"type\":\"record\",\"name\":\"User\",\"namespace\":\"Confluent.Kafka.Examples.AvroSpecific" +
-                "\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"favorite_number\",\"type\":[\"i" +
-                "nt\",\"null\"]},{\"name\":\"favorite_color\",\"type\":[\"string\",\"null\"]}]}";
-
+            var srInitial = new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = config.Server });
             var sr = new CachedSchemaRegistryClient(new SchemaRegistryConfig { Url = config.Server });
+            var testSchemaBase64 = Confluent.Kafka.Examples.Protobuf.Person.Descriptor.File.SerializedData.ToBase64();
+            var topicName = Guid.NewGuid().ToString();
+            var subjectInitial = sr.ConstructValueSubjectName(topicName);
+            var subject = sr.ConstructValueSubjectName(topicName + "2");
 
-            var subject = sr.ConstructValueSubjectName(topicName);
-            var id = sr.RegisterSchemaAsync(subject, testSchema1).Result;
+            // check that registering a base64 protobuf schema works.
+            var id1 = srInitial.RegisterSchemaAsync(subjectInitial, new Schema(testSchemaBase64, SchemaType.Protobuf)).Result;
 
-            var schema = sr.GetSchemaAsync(id).Result;
-            Assert.Equal(schema.SchemaString, testSchema1);
-            Assert.Empty(schema.References);
-            Assert.Equal(schema.SchemaType, SchemaType.Avro);
+            var sc = srInitial.GetSchemaAsync(id1).Result;
         }
     }
 }

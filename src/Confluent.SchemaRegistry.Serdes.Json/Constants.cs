@@ -15,26 +15,13 @@
 // Refer to LICENSE for more information.
 
 
-namespace  Confluent.SchemaRegistry
+namespace Confluent.SchemaRegistry.Serdes
 {
-    /// <summary>
-    ///     Enumerates the types of schema supported by Schema Registry.
-    /// </summary>
-    public enum SchemaType
+    internal static class Constants
     {
         /// <summary>
-        ///     Avro
+        ///     Magic byte that identifies a message with Confluent Platform framing.
         /// </summary>
-        Avro,
-
-        /// <summary>
-        ///     Protobuf
-        /// </summary>
-        Protobuf,
-
-        /// <summary>
-        ///     Json
-        /// </summary>
-        Json
+        public const byte MagicByte = 0;
     }
 }

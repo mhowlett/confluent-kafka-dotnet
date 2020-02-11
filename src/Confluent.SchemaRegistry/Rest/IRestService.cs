@@ -32,7 +32,7 @@ namespace Confluent.SchemaRegistry
         Task<Compatibility> GetCompatibilityAsync(string subject);
         Task<Compatibility> GetGlobalCompatibilityAsync();
         Task<RegisteredSchema> GetLatestSchemaAsync(string subject);
-        Task<RegisteredSchema> GetSchemaAsync(int id);
+        Task<RegisteredSchema> GetSchemaAsync(int id, string format = null);
         Task<RegisteredSchema> GetSchemaAsync(string subject, int version);
         Task<List<string>> GetSubjectsAsync();
         Task<List<int>> GetSubjectVersionsAsync(string subject);

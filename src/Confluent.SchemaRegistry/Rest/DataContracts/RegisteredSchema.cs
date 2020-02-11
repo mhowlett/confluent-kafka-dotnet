@@ -99,10 +99,6 @@ namespace Confluent.SchemaRegistry
         /// </param>
         public RegisteredSchema(string subject, int version, int id, string schemaString, SchemaType schemaType, List<SchemaReference> references)
         {
-            if (string.IsNullOrEmpty(subject))
-            {
-                throw new ArgumentNullException(nameof(subject));
-            }
             if (string.IsNullOrEmpty(schemaString))
             {
                 throw new ArgumentNullException(nameof(schemaString));

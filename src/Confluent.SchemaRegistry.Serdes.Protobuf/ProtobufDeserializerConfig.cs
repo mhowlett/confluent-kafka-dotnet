@@ -14,27 +14,14 @@
 //
 // Refer to LICENSE for more information.
 
+using Confluent.Kafka;
 
-namespace  Confluent.SchemaRegistry
+
+namespace Confluent.SchemaRegistry.Serdes
 {
     /// <summary>
-    ///     Enumerates the types of schema supported by Schema Registry.
+    ///     <see cref="Confluent.SchemaRegistry.Serdes.ProtobufDeserializer{T}" />
+    ///     configuration properties.
     /// </summary>
-    public enum SchemaType
-    {
-        /// <summary>
-        ///     Avro
-        /// </summary>
-        Avro,
-
-        /// <summary>
-        ///     Protobuf
-        /// </summary>
-        Protobuf,
-
-        /// <summary>
-        ///     Json
-        /// </summary>
-        Json
-    }
+    public class ProtobufDeserializerConfig : Config {}
 }

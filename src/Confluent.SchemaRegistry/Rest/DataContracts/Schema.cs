@@ -39,11 +39,40 @@ namespace  Confluent.SchemaRegistry
         [DataMember(Name = "references")]
         public List<SchemaReference> References { get; set; }
 
-        /// <summary>
-        ///     The type of schema: AVRO, PROTOBUF, JSON
-        /// </summary>
         [DataMember(Name = "schemaType")]
-        public SchemaType SchemaType { get; set; }
+        private string SchemaType_String { get; set; }
+
+        /// <summary>
+        ///     The type of schema
+        /// </summary>
+        /// <remarks>
+        ///     The .NET serialization framework has no way to convert
+        ///     an enum to a corresponding string value, so this property
+        ///     is backed by a string property, which is what is serialized.
+        /// </remarks>
+        public SchemaType SchemaType
+        {
+            get
+            {
+                switch (SchemaType_String)
+                {
+                    case "AVRO": return SchemaType.Avro;
+                    case "PROTOBUF": return SchemaType.Protobuf;
+                    case "JSON": return SchemaType.Json;
+                }
+                throw new InvalidOperationException($"Invalid program state: Unknown schema type {SchemaType_String}");
+            }
+            set
+            {
+                switch (value)
+                {
+                    case SchemaType.Avro: SchemaType_String = "AVRO"; break;
+                    case SchemaType.Protobuf: SchemaType_String = "PROTOBUF"; break;
+                    case SchemaType.Json: SchemaType_String = "JSON"; break;
+                    default: throw new InvalidOperationException($"Invalid program state: Unknown schema type {SchemaType_String}");
+                }
+            }
+        }
 
         /// <summary>
         ///     Empty constructor for serialization
@@ -66,6 +95,22 @@ namespace  Confluent.SchemaRegistry
         {
             SchemaString = schemaString;
             References = references;
+            SchemaType = schemaType;
+        }
+
+        /// <summary>
+        ///     Initializes a new instance of this class.
+        /// </summary>
+        /// <param name="schemaString">
+        ///     String representation of the schema.
+        /// </param>
+        /// <param name="schemaType">
+        ///     The schema type: AVRO, PROTOBUF, JSON
+        /// </param>
+        public Schema(string schemaString, SchemaType schemaType)
+        {
+            SchemaString = schemaString;
+            References = new List<SchemaReference>();
             SchemaType = schemaType;
         }
 
