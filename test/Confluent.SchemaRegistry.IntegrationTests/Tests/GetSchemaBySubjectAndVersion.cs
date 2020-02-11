@@ -1,4 +1,4 @@
-// Copyright 20 Confluent Inc.
+// Copyright 2020 Confluent Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,9 @@ namespace Confluent.SchemaRegistry.IntegrationTests
             var schema = sr.GetLatestSchemaAsync(subject).Result;
             var schemaString = sr.GetSchemaAsync(subject, schema.Version).Result;
 
-            Assert.Equal(schemaString, testSchema1);
+            Assert.Equal(schema.SchemaString, testSchema1);
+            Assert.Equal(schema.SchemaType, SchemaType.Avro);
+            Assert.Null(schema.References);  // TODO: Reflects the JSON returned by SR. Would maybe empty be better?
         }
     }
 }

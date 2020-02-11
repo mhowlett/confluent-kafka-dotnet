@@ -15,6 +15,7 @@
 // Refer to LICENSE for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 
@@ -24,7 +25,7 @@ namespace Confluent.SchemaRegistry
     ///     Represents a Schema stored in Schema Registry.
     /// </summary>
     [DataContract]
-    public class Schema : IComparable<Schema>, IEquatable<Schema>
+    public class RegisteredSchema : IComparable<RegisteredSchema>, IEquatable<RegisteredSchema>
     {
         /// <summary>
         ///     The subject the schema is registered against.
@@ -38,40 +39,11 @@ namespace Confluent.SchemaRegistry
         [DataMember(Name = "version")]
         public int Version { get; set; }
 
-        [DataMember(Name = "schemaType")]
-        private string SchemaType_String { get; set; }
-
         /// <summary>
-        ///     The type of schema
+        ///     Unique identifier of the schema.
         /// </summary>
-        /// <remarks>
-        ///     The .NET serialization framework has no way to convert
-        ///     an enum to a corresponding string value, so this property
-        ///     is backed by a string property, which is what is serialized.
-        /// </remarks>
-        public SchemaType SchemaType
-        {
-            get
-            {
-                switch (SchemaType_String)
-                {
-                    case "AVRO": return SchemaType.Avro;
-                    case "PROTOBUF": return SchemaType.Protobuf;
-                    case "JSON": return SchemaType.Json;
-                }
-                throw new InvalidOperationException($"Invalid program state: Unknown schema type {SchemaType_String}");
-            }
-            set
-            {
-                switch (value)
-                {
-                    case SchemaType.Avro: SchemaType_String = "AVRO"; break;
-                    case SchemaType.Protobuf: SchemaType_String = "PROTOBUF"; break;
-                    case SchemaType.Json: SchemaType_String = "JSON"; break;
-                    default: throw new InvalidOperationException($"Invalid program state: Unknown schema type {SchemaType_String}");
-                }
-            }
-        }
+        [DataMember(Name = "id")]
+        public int Id { get; set; }
 
         /// <summary>
         ///     A string representation of the schema.
@@ -79,10 +51,33 @@ namespace Confluent.SchemaRegistry
         [DataMember(Name = "schema")]
         public string SchemaString { get; set; }
 
-        private Schema() {}
+        /// <summary>
+        ///     A list of schemas referenced by this schema.
+        /// </summary>
+        [DataMember(Name = "references")]
+        public List<SchemaReference> References { get; set; }
 
         /// <summary>
-        ///     Initializes a new instance of the Schema class.
+        ///     The type of schema: AVRO, PROTOBUF, JSON
+        /// </summary>
+        [DataMember(Name = "schemaType")]
+        public SchemaType SchemaType { get; set; }
+
+        /// <summary>
+        ///     The unregistered schema corresponding to this schema.
+        /// </summary>
+        public Schema Schema
+        {
+            get
+            {
+                return new Schema(SchemaString, References, SchemaType);
+            }
+        }
+
+        private RegisteredSchema() {}
+
+        /// <summary>
+        ///     Initializes a new instance of this class.
         /// </summary>
         /// <param name="subject">
         ///     The subject the schema is registered against.
@@ -93,42 +88,17 @@ namespace Confluent.SchemaRegistry
         /// <param name="id">
         ///     The globally unique identifier of the schema, >= 0
         /// </param>
-        public Schema(string schemaString, List<SchemaReference> references, SchemaType schemaType)
-        {
-            SchemaString = schemaString;
-            References = references;
-            SchemaType = schemaType;
-        }
-
-        /// <summary>
-        ///     Initializes a new instance of this class.
-        /// </summary>
         /// <param name="schemaString">
         ///     String representation of the schema.
         /// </param>
         /// <param name="schemaType">
         ///     The schema type: AVRO, PROTOBUF, JSON
         /// </param>
-        public Schema(string schemaString, SchemaType schemaType)
-        {
-            SchemaString = schemaString;
-            References = new List<SchemaReference>();
-            SchemaType = schemaType;
-        }
-
-        /// <summary>
-        ///     Determines whether this instance and a specified object, which must also be an
-        ///     instance of this type, have the same value (Overrides Object.Equals(Object))
-        /// </summary>
-        /// <param name="obj">
-        ///     The instance to compare to this instance.
+        /// <param name="references">
+        ///     A list of schemas referenced by this schema.
         /// </param>
-        public Schema(string subject, int version, int id, string schemaString)
+        public RegisteredSchema(string subject, int version, int id, string schemaString, SchemaType schemaType, List<SchemaReference> references)
         {
-            if (string.IsNullOrEmpty(subject))
-            {
-                throw new ArgumentNullException(nameof(subject));
-            }
             if (string.IsNullOrEmpty(schemaString))
             {
                 throw new ArgumentNullException(nameof(schemaString));
@@ -146,17 +116,19 @@ namespace Confluent.SchemaRegistry
             Version = version;
             Id = id;
             SchemaString = schemaString;
+            References = references;
+            SchemaType = schemaType;
         }
 
         /// <summary>
-        ///     Returns a string representation of the Schema object.
+        ///     Returns a summary string representation of the object.
         /// </summary>
         /// <returns>
-        ///     A string that represents the schema object.
+        ///     A string that represents the object.
         /// </returns>
         public override string ToString()
-            => $"{{subject={Subject}, version={Version}, id={Id}}}";
-        
+            => $"{{chars={SchemaString.Length}, subject={Subject}, version={Version}, id={Id}, type={SchemaType}, dependencies={References.Count}}}";
+
         /// <summary>
         ///     Returns a hash code for this Schema.
         /// </summary>
@@ -171,7 +143,7 @@ namespace Confluent.SchemaRegistry
             result = 31 * result + SchemaString.GetHashCode();
             return result;
         }
-        
+
         /// <summary>
         ///     Compares this instance with a specified Schema object and indicates whether this 
         ///     instance precedes, follows, or appears in the same position in the sort order as
@@ -187,11 +159,11 @@ namespace Confluent.SchemaRegistry
         ///     the sort order as other. Greater than zero: This instance follows other OR other 
         ///     is null.
         /// </returns>
-        public int CompareTo(Schema other)
+        public int CompareTo(RegisteredSchema other)
         {
             if (other == null)
             {
-                throw new ArgumentException("cannot compare object of type Schema with null.");
+                throw new ArgumentException("Cannot compare object of type Schema with null.");
             }
 
             int result = string.Compare(Subject, other.Subject, StringComparison.Ordinal);
@@ -201,6 +173,10 @@ namespace Confluent.SchemaRegistry
             }
 
             return result;
+
+            // If the schema strings + version are equal and any of the other properties are not,
+            // then this is a logical error. Assume that this prevented/handled elsewhere.
+            
         }
 
         /// <summary>
@@ -221,7 +197,7 @@ namespace Confluent.SchemaRegistry
                 return false;
             }
 
-            Schema that = (Schema)obj;
+            RegisteredSchema that = (RegisteredSchema)obj;
             return Equals(that);
         }
 
@@ -235,7 +211,7 @@ namespace Confluent.SchemaRegistry
         ///     true if the value of the other parameter is the same as the value of this instance; 
         ///     otherwise, false. If other is null, the method returns false.
         /// </returns>
-        public bool Equals(Schema other)
+        public bool Equals(RegisteredSchema other)
             => Version == other.Version &&
                Id == other.Id &&
                Subject == other.Subject &&

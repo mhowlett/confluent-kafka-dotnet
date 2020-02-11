@@ -20,7 +20,7 @@ namespace Confluent.SchemaRegistry.Serdes
     internal static class Constants
     {
         /// <summary>
-        ///     Magic byte that identifies an Avro serialized message with Confluent Platform framing.
+        ///     Magic byte that identifies a message with Confluent Platform framing.
         /// </summary>
         public const byte MagicByte = 0;
     }
