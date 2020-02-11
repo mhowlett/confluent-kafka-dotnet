@@ -42,25 +42,10 @@ namespace Confluent.SchemaRegistry.Serdes
         private static string FieldTypeToString(FieldType ft)
             => ft.ToString().ToLower();
 
-        private static void DescriptorToString(MessageDescriptor md)
-        {
-            // which will include protocol "package" name and the name of and enclosing types.
-            // TODO: what is an enclosing type.
-            Console.WriteLine($"package {md.FullName.Substring(0, md.FullName.Length - md.Name.Length - 1)};");
-            Console.WriteLine();
-
-            Console.WriteLine($"message {md.Name} {{");
-            foreach (var f in md.Fields.InDeclarationOrder())
-            {
-                Console.WriteLine($"    {FieldTypeToString(f.FieldType)} {f.Name} = {f.FieldNumber};");
-            }
-            Console.WriteLine("}");
-        }
-
 
         public Task<byte[]> SerializeAsync(T data, SerializationContext context)
         {
-            DescriptorToString(data.Descriptor);
+            // var d = data.Descriptor;
             return Task.FromResult(data.ToByteArray());
         }
     }
