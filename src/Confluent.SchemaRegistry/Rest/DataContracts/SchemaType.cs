@@ -25,16 +25,16 @@ namespace  Confluent.SchemaRegistry
         /// <summary>
         ///     Avro
         /// </summary>
-        AVRO,
+        Avro,
 
         /// <summary>
         ///     Protobuf
         /// </summary>
-        PROTOBUF,
+        Protobuf,
 
         /// <summary>
         ///     Json
         /// </summary>
-        JSON
+        Json
     }
 }

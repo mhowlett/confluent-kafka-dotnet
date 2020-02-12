@@ -107,10 +107,15 @@ namespace Confluent.SchemaRegistry
         /// <param name="id">
         ///     The unique id of schema to get.
         /// </param>
+        /// <param name="format">
+        ///     The format of the schema to get. Currently, the only supported
+        ///     value is "serialized", and this is only valid for protobuf
+        ///     schemas.
+        /// </param>
         /// <returns>
         ///     The schema identified by <paramref name="id" />.
         /// </returns>
-        Task<Schema> GetSchemaAsync(int id);
+        Task<Schema> GetSchemaAsync(int id, string format = null);
 
 
         /// <summary>
